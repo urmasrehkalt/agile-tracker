@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light dark">
     <title>Agiilne Tracker</title>
     <link rel="stylesheet" href="/style.css">
     <script defer src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
@@ -10,9 +11,14 @@
 </head>
 <body>
     <header class="topbar">
-        <h1>Agiilne Tracker</h1>
+        <div class="brand">
+            <span class="eyebrow">Kanban töölaud</span>
+            <h1>Agiilne Tracker</h1>
+        </div>
         <div class="toolbar">
+            <label class="visually-hidden" for="search">Otsi story pealkirja järgi</label>
             <input id="search" class="search" type="search" placeholder="Otsi pealkirja järgi…">
+            <label class="visually-hidden" for="filter-points">Filtreeri punktide järgi</label>
             <select id="filter-points" class="filter">
                 <option value="">Kõik punktid</option>
                 <option value="1">≥ 1</option>
@@ -20,31 +26,52 @@
                 <option value="5">≥ 5</option>
                 <option value="8">≥ 8</option>
             </select>
+            <button id="theme-toggle" class="btn btn-ghost theme-toggle" type="button" aria-pressed="false">Tume</button>
             <button id="add-story" class="btn btn-primary">+ Uus story</button>
         </div>
     </header>
 
+    <div id="app-status" class="app-status" role="status" aria-live="polite" hidden></div>
+
     <main class="board">
         <section class="column" data-status="todo">
             <header class="column-header">
-                <h2>Todo / Backlog</h2>
-                <span class="points-sum" data-sum-for="todo">0p</span>
+                <div>
+                    <h2>Todo / Backlog</h2>
+                    <p>Planeeritud töö</p>
+                </div>
+                <div class="column-stats">
+                    <span class="story-count" data-count-for="todo">0 story</span>
+                    <span class="points-sum" data-sum-for="todo">0p</span>
+                </div>
             </header>
             <div class="cards" id="col-todo"></div>
         </section>
 
         <section class="column" data-status="doing">
             <header class="column-header">
-                <h2>Doing</h2>
-                <span class="points-sum" data-sum-for="doing">0p</span>
+                <div>
+                    <h2>Doing</h2>
+                    <p>Töös olevad story'd</p>
+                </div>
+                <div class="column-stats">
+                    <span class="story-count" data-count-for="doing">0 story</span>
+                    <span class="points-sum" data-sum-for="doing">0p</span>
+                </div>
             </header>
             <div class="cards" id="col-doing"></div>
         </section>
 
         <section class="column" data-status="done">
             <header class="column-header">
-                <h2>Done</h2>
-                <span class="points-sum" data-sum-for="done">0p</span>
+                <div>
+                    <h2>Done</h2>
+                    <p>Valmis ja kontrollitud</p>
+                </div>
+                <div class="column-stats">
+                    <span class="story-count" data-count-for="done">0 story</span>
+                    <span class="points-sum" data-sum-for="done">0p</span>
+                </div>
             </header>
             <div class="cards" id="col-done"></div>
         </section>
@@ -52,7 +79,7 @@
 
     <div id="detail-root" class="modal-root" hidden>
         <div class="modal-backdrop" data-close></div>
-        <div class="modal" role="dialog" aria-modal="true">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="detail-title">
             <header class="modal-header">
                 <h2 id="detail-title">Story</h2>
                 <button class="modal-close btn" data-close aria-label="Sulge">✕</button>
@@ -67,7 +94,7 @@
 
     <div id="modal-root" class="modal-root" hidden>
         <div class="modal-backdrop" data-close></div>
-        <div class="modal" role="dialog" aria-modal="true">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
             <header class="modal-header">
                 <h2 id="modal-title">Uus story</h2>
                 <button class="modal-close btn" data-close aria-label="Sulge">✕</button>

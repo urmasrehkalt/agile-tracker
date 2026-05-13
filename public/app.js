@@ -1,4 +1,5 @@
 const API = "/api/stories";
+const THEME_KEY = "agiilne-tracker-theme";
 
 const state = {
     stories: [],
@@ -32,18 +33,100 @@ function escapeHtml(str) {
         .replace(/'/g, "&#039;");
 }
 
+function getSystemTheme() {
+    return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+function getSavedTheme() {
+    const theme = localStorage.getItem(THEME_KEY);
+    return theme === "dark" || theme === "light" ? theme : null;
+}
+
+function updateThemeToggle(theme) {
+    const btn = document.getElementById("theme-toggle");
+    if (!btn) return;
+    const isDark = theme === "dark";
+    btn.textContent = isDark ? "Hele" : "Tume";
+    btn.setAttribute("aria-pressed", String(isDark));
+    btn.setAttribute("aria-label", isDark ? "Lülita hele teema sisse" : "Lülita tume teema sisse");
+}
+
+function applyTheme(theme) {
+    document.documentElement.dataset.theme = theme;
+    updateThemeToggle(theme);
+}
+
+function initTheme() {
+    const btn = document.getElementById("theme-toggle");
+    applyTheme(getSavedTheme() || getSystemTheme());
+    if (!btn) return;
+    btn.addEventListener("click", () => {
+        const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+        localStorage.setItem(THEME_KEY, next);
+        applyTheme(next);
+    });
+    if (window.matchMedia) {
+        const media = window.matchMedia("(prefers-color-scheme: dark)");
+        const syncSystemTheme = () => {
+            if (!getSavedTheme()) applyTheme(getSystemTheme());
+        };
+        if (media.addEventListener) {
+            media.addEventListener("change", syncSystemTheme);
+        } else if (media.addListener) {
+            media.addListener(syncSystemTheme);
+        }
+    }
+}
+
+function setAppStatus(message, type = "info") {
+    const status = document.getElementById("app-status");
+    if (!status) return;
+    status.textContent = message;
+    status.className = type === "error" ? "app-status error" : "app-status";
+    status.hidden = !message;
+}
+
+function clearAppStatus() {
+    setAppStatus("");
+}
+
 function renderCard(story) {
     const card = document.createElement("article");
     card.className = "card";
     card.dataset.id = story.id;
+    card.tabIndex = 0;
+    card.setAttribute("role", "button");
+    card.setAttribute("aria-label", `Ava story #${story.id}: ${story.title}`);
+    const criteriaCount = (story.acceptanceCriteria || []).length;
+    const commentCount = (story.comments || []).length;
+    const description = String(story.description || "").trim();
     card.innerHTML = `
-        <h3 class="card-title">${escapeHtml(story.title)}</h3>
         <div class="card-meta">
             <span class="points-badge">${story.points}p</span>
             <span class="card-id">#${story.id}</span>
         </div>
+        <h3 class="card-title">${escapeHtml(story.title)}</h3>
+        ${description ? `<p class="card-description">${escapeHtml(description)}</p>` : ""}
+        <div class="card-metrics">
+            <span class="metric-badge">${criteriaCount} AC</span>
+            <span class="metric-badge">${commentCount} kommentaari</span>
+        </div>
     `;
     return card;
+}
+
+function renderEmptyState(container, status, filteredOut) {
+    const empty = document.createElement("div");
+    empty.className = "empty-state";
+    const statusText = {
+        todo: "Lisa esimene story või muuda filtreid.",
+        doing: "Lohista siia story, kui töö algab.",
+        done: "Valmis story'd ilmuvad siia.",
+    };
+    empty.innerHTML = filteredOut
+        ? `<div><strong>Filtritele vastavaid story'sid ei leitud.</strong><span>Proovi otsingut või punktifiltrit muuta.</span></div>`
+        : `<div><strong>Siin pole veel story'sid.</strong><span>${statusText[status]}</span></div>`;
+    container.appendChild(empty);
 }
 
 function renderBoard() {
@@ -55,6 +138,8 @@ function renderBoard() {
     byStatus.todo.sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0) || a.id - b.id);
     byStatus.doing.sort((a, b) => a.id - b.id);
     byStatus.done.sort((a, b) => a.id - b.id);
+    const filteredTotal = byStatus.todo.length + byStatus.doing.length + byStatus.done.length;
+    const filteredOut = state.stories.length > 0 && filteredTotal === 0;
 
     for (const status of ["todo", "doing", "done"]) {
         const container = document.getElementById(`col-${status}`);
@@ -62,27 +147,25 @@ function renderBoard() {
         for (const story of byStatus[status]) {
             container.appendChild(renderCard(story));
         }
+        if (byStatus[status].length === 0) renderEmptyState(container, status, filteredOut);
         const sum = byStatus[status].reduce((acc, s) => acc + (s.points || 0), 0);
         const sumEl = document.querySelector(`[data-sum-for="${status}"]`);
         if (sumEl) sumEl.textContent = `${sum}p`;
+        const countEl = document.querySelector(`[data-count-for="${status}"]`);
+        if (countEl) countEl.textContent = `${byStatus[status].length} story`;
     }
 }
 
 function showError(message) {
-    let banner = document.getElementById("error-banner");
-    if (!banner) {
-        banner = document.createElement("div");
-        banner.id = "error-banner";
-        banner.style.cssText = "background:#fee2e2;color:#991b1b;padding:0.6rem 1rem;border-bottom:1px solid #fecaca;font-size:0.9rem;";
-        document.body.insertBefore(banner, document.body.firstChild);
-    }
-    banner.textContent = message;
+    setAppStatus(message, "error");
 }
 
 async function reload() {
+    setAppStatus("Laadin story'sid...");
     try {
         state.stories = await fetchStories();
         renderBoard();
+        clearAppStatus();
     } catch (err) {
         showError(err.message);
     }
@@ -409,6 +492,15 @@ function initDetail() {
         const story = findStory(id);
         if (story) detail.open(story);
     });
+    document.querySelector(".board").addEventListener("keydown", (e) => {
+        if (e.key !== "Enter" && e.key !== " ") return;
+        const card = e.target.closest(".card");
+        if (!card) return;
+        e.preventDefault();
+        const id = Number(card.dataset.id);
+        const story = findStory(id);
+        if (story) detail.open(story);
+    });
 }
 
 function initSortable() {
@@ -419,6 +511,7 @@ function initSortable() {
         if (!el) return;
         Sortable.create(el, {
             group: "kanban",
+            draggable: ".card",
             animation: 150,
             ghostClass: "sortable-ghost",
             dragClass: "sortable-drag",
@@ -459,6 +552,7 @@ function initFilters() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+    initTheme();
     initModal();
     initDetail();
     initSortable();
