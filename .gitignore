@@ -26,5 +26,9 @@ env/
 # Lokaalsed andmed (genereeritakse käivitusel)
 data/stories.json
 
+# Uvicorn taustaprotsessi failid
+.uvicorn.pid
+.uvicorn.log
+
 # Ülesande dokument (ei sünki GitHubi)
 ülesanne-agiilne-tracker.md

@@ -45,7 +45,22 @@ cd urmas-agiilne-tracker
 ./start.sh
 ```
 
-`start.sh` loob virtuaalkeskkonna, installib sõltuvused (ainult kui need puuduvad) ja käivitab uvicorn serveri pordile 8000. Teise pordi kasutamiseks: `PORT=9000 ./start.sh`.
+`start.sh` käitub järgmiselt:
+
+- Loob virtuaalkeskkonna `.venv` (kui puudub) ja installib sõltuvused
+- Käivitab uvicorn serveri **taustal** pordile 8000 — terminal jääb vabaks
+- Logid lähevad faili `.uvicorn.log`, PID faili `.uvicorn.pid`
+- Kordustäitmisel **tapab** vana serveri ja **restardib** uue
+
+Käsureavalikud:
+
+```bash
+./start.sh                # või ./start.sh start
+./start.sh stop           # peata server
+./start.sh restart        # = start (sama loogika)
+./start.sh status         # näitab kas server jookseb
+PORT=9000 ./start.sh      # teine port
+```
 
 ### Käsitsi käivitus
 
