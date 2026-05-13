@@ -37,6 +37,18 @@ Arhitektuur on **monoliit**: FastAPI serveerib nii REST API endpoint'e (`/api/*`
 
 **Eeldused:** Python 3.11 või uuem (testitud 3.12-ga), `git`.
 
+### Kiire käivitus (soovitatud)
+
+```bash
+git clone https://github.com/vikk-tak25/urmas-agiilne-tracker.git
+cd urmas-agiilne-tracker
+./start.sh
+```
+
+`start.sh` loob virtuaalkeskkonna, installib sõltuvused (ainult kui need puuduvad) ja käivitab uvicorn serveri pordile 8000. Teise pordi kasutamiseks: `PORT=9000 ./start.sh`.
+
+### Käsitsi käivitus
+
 ```bash
 # 1. Klooni repo
 git clone https://github.com/vikk-tak25/urmas-agiilne-tracker.git
@@ -49,11 +61,12 @@ pip install -r requirements.txt
 
 # 3. Käivita server
 uvicorn app.main:app --reload --port 8000
-
-# 4. Ava brauseris
-#   - http://localhost:8000        Kanban-laud
-#   - http://localhost:8000/docs   Swagger UI (interaktiivne API)
 ```
+
+### Pärast käivitust ava brauseris
+
+- http://localhost:8000 — Kanban-laud
+- http://localhost:8000/docs — Swagger UI (interaktiivne API)
 
 Esimesel käivitusel kopeeritakse `data/stories.example.json` failist 3 näidisstory'd. Kui soovid tühja seisust alustada, kustuta `data/stories.json` enne käivitamist.
 
