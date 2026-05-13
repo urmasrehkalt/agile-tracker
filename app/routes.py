@@ -1,7 +1,7 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Response, status
 
 from . import storage
-from .models import Story, StoryCreate
+from .models import Story, StoryCreate, StoryUpdate
 
 router = APIRouter(prefix="/api/stories", tags=["stories"])
 
@@ -50,3 +50,28 @@ def create_story(payload: StoryCreate) -> dict:
     stories.append(new_story)
     storage.save_all(stories)
     return new_story
+
+
+@router.put("/{story_id}", response_model=Story)
+def update_story(story_id: int, payload: StoryUpdate) -> dict:
+    stories = storage.load_all()
+    story = _find(stories, story_id)
+    if story is None:
+        raise HTTPException(status_code=404, detail=f"Story {story_id} not found")
+
+    updates = payload.model_dump(exclude_unset=True)
+    story.update(updates)
+    story["updatedAt"] = storage.now_str()
+    storage.save_all(stories)
+    return story
+
+
+@router.delete("/{story_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_story(story_id: int) -> Response:
+    stories = storage.load_all()
+    story = _find(stories, story_id)
+    if story is None:
+        raise HTTPException(status_code=404, detail=f"Story {story_id} not found")
+    stories.remove(story)
+    storage.save_all(stories)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
