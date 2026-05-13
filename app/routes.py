@@ -1,7 +1,14 @@
 from fastapi import APIRouter, HTTPException, Response, status
 
 from . import storage
-from .models import ReorderRequest, StatusUpdate, Story, StoryCreate, StoryUpdate
+from .models import (
+    CommentCreate,
+    ReorderRequest,
+    StatusUpdate,
+    Story,
+    StoryCreate,
+    StoryUpdate,
+)
 
 router = APIRouter(prefix="/api/stories", tags=["stories"])
 
@@ -103,3 +110,47 @@ def update_status(story_id: int, payload: StatusUpdate) -> dict:
     story["updatedAt"] = storage.now_str()
     storage.save_all(stories)
     return story
+
+
+@router.post(
+    "/{story_id}/comments",
+    response_model=Story,
+    status_code=status.HTTP_201_CREATED,
+)
+def add_comment(story_id: int, payload: CommentCreate) -> dict:
+    stories = storage.load_all()
+    story = _find(stories, story_id)
+    if story is None:
+        raise HTTPException(status_code=404, detail=f"Story {story_id} not found")
+    comments = story.setdefault("comments", [])
+    comment = {
+        "id": storage.next_id(comments) if comments else 1,
+        "text": payload.text,
+        "createdAt": storage.now_str(),
+    }
+    comments.append(comment)
+    story["updatedAt"] = comment["createdAt"]
+    storage.save_all(stories)
+    return story
+
+
+@router.delete(
+    "/{story_id}/comments/{comment_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_comment(story_id: int, comment_id: int) -> Response:
+    stories = storage.load_all()
+    story = _find(stories, story_id)
+    if story is None:
+        raise HTTPException(status_code=404, detail=f"Story {story_id} not found")
+    comments = story.get("comments", [])
+    comment = next((c for c in comments if int(c["id"]) == comment_id), None)
+    if comment is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Comment {comment_id} not found on story {story_id}",
+        )
+    comments.remove(comment)
+    story["updatedAt"] = storage.now_str()
+    storage.save_all(stories)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
