@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Response, status
 
 from . import storage
-from .models import Story, StoryCreate, StoryUpdate
+from .models import ReorderRequest, StatusUpdate, Story, StoryCreate, StoryUpdate
 
 router = APIRouter(prefix="/api/stories", tags=["stories"])
 
@@ -75,3 +75,31 @@ def delete_story(story_id: int) -> Response:
     stories.remove(story)
     storage.save_all(stories)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.patch("/reorder", response_model=list[Story])
+def reorder_stories(payload: ReorderRequest) -> list[dict]:
+    stories = storage.load_all()
+    ids_in_data = {int(s["id"]) for s in stories}
+    missing = [sid for sid in payload.order if sid not in ids_in_data]
+    if missing:
+        raise HTTPException(status_code=404, detail=f"Stories not found: {missing}")
+
+    priority_map = {sid: idx for idx, sid in enumerate(payload.order)}
+    for s in stories:
+        if int(s["id"]) in priority_map:
+            s["priority"] = priority_map[int(s["id"])]
+    storage.save_all(stories)
+    return stories
+
+
+@router.patch("/{story_id}/status", response_model=Story)
+def update_status(story_id: int, payload: StatusUpdate) -> dict:
+    stories = storage.load_all()
+    story = _find(stories, story_id)
+    if story is None:
+        raise HTTPException(status_code=404, detail=f"Story {story_id} not found")
+    story["status"] = payload.status
+    story["updatedAt"] = storage.now_str()
+    storage.save_all(stories)
+    return story
