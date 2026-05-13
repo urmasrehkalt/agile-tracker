@@ -72,35 +72,37 @@
                 <h2 id="modal-title">Uus story</h2>
                 <button class="modal-close btn" data-close aria-label="Sulge">✕</button>
             </header>
-            <form id="story-form" class="modal-body">
-                <label class="field">
-                    <span>Pealkiri *</span>
-                    <input name="title" required maxlength="200">
-                </label>
-                <label class="field">
-                    <span>Kirjeldus</span>
-                    <textarea name="description" rows="3"></textarea>
-                </label>
-                <div class="row">
+            <form id="story-form">
+                <div class="modal-body">
                     <label class="field">
-                        <span>Punktid *</span>
-                        <input name="points" type="number" min="0" step="1" required>
+                        <span>Pealkiri *</span>
+                        <input name="title" required maxlength="200">
                     </label>
                     <label class="field">
-                        <span>Staatus</span>
-                        <select name="status">
-                            <option value="todo">Todo / Backlog</option>
-                            <option value="doing">Doing</option>
-                            <option value="done">Done</option>
-                        </select>
+                        <span>Kirjeldus</span>
+                        <textarea name="description" rows="3"></textarea>
                     </label>
+                    <div class="row">
+                        <label class="field">
+                            <span>Punktid *</span>
+                            <input name="points" type="number" min="0" step="1" required>
+                        </label>
+                        <label class="field">
+                            <span>Staatus</span>
+                            <select name="status">
+                                <option value="todo">Todo / Backlog</option>
+                                <option value="doing">Doing</option>
+                                <option value="done">Done</option>
+                            </select>
+                        </label>
+                    </div>
+                    <fieldset class="field">
+                        <legend>Vastuvõtutingimused * (vähemalt 1)</legend>
+                        <div id="criteria-list"></div>
+                        <button type="button" class="btn" id="add-criterion">+ Lisa tingimus</button>
+                    </fieldset>
+                    <p id="form-error" class="form-error" hidden></p>
                 </div>
-                <fieldset class="field">
-                    <legend>Vastuvõtutingimused * (vähemalt 1)</legend>
-                    <div id="criteria-list"></div>
-                    <button type="button" class="btn" id="add-criterion">+ Lisa tingimus</button>
-                </fieldset>
-                <p id="form-error" class="form-error" hidden></p>
                 <footer class="modal-footer">
                     <button type="button" class="btn" data-close>Tühista</button>
                     <button type="submit" class="btn btn-primary">Salvesta</button>
