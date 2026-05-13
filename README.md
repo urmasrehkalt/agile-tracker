@@ -92,7 +92,7 @@ Esimesel käivitusel kopeeritakse `data/stories.example.json` failist 3 näidiss
 source .venv/bin/activate
 
 # Käivita kõik testid
-pytest -v        # 21 API testi
+pytest -v        # API testid
 
 # Või otse ilma aktiveerimata:
 .venv/bin/pytest -v
@@ -111,6 +111,8 @@ pytest -v        # 21 API testi
 - Punktide määramine (täisarv, ≥ 0, vigane sisend → arusaadav veateade)
 - Vähemalt 1 vastuvõtutingimus story kohta (kohustuslik)
 - Kommentaaride lisamine koos ajatempliga
+- Ühe mockupi lisamine story juurde faili valimise, drag-and-dropi või clipboard paste'i abil
+- Mockupi asendamine, kustutamine ja suuremas vaates avamine
 - Andmete salvestamine JSON-faili
 - Täielik REST API (allpool)
 
@@ -164,6 +166,8 @@ Kõik endpointid on dokumenteeritud Swaggeris: `http://localhost:8000/docs`.
 | DELETE | `/api/stories/{id}` | Kustuta story | 204/404 |
 | PATCH  | `/api/stories/{id}/status` | Muuda staatust (`{"status":"doing"}`) | 200/404/422 |
 | PATCH  | `/api/stories/reorder` | Salvesta backlogi järjekord (`{"order":[3,1]}`) | 200/404 |
+| PUT    | `/api/stories/{id}/mockup` | Lisa või asenda story mockup (`multipart/form-data`) | 200/404/422 |
+| DELETE | `/api/stories/{id}/mockup` | Kustuta story mockup | 204/404 |
 | POST   | `/api/stories/{id}/comments` | Lisa kommentaar (`{"text":"..."}`) | 201/404/422 |
 | DELETE | `/api/stories/{id}/comments/{cid}` | Kustuta kommentaar | 204/404 |
 
@@ -184,6 +188,7 @@ Kõik endpointid on dokumenteeritud Swaggeris: `http://localhost:8000/docs`.
   "comments": [
     { "id": 1, "text": "Seda tuleb testida.", "createdAt": "2026-05-12 14:32" }
   ],
+  "mockup": null,
   "createdAt": "2026-05-12 14:00",
   "updatedAt": "2026-05-12 14:32"
 }
@@ -203,14 +208,15 @@ urmas-agiilne-tracker/
 │   └── routes.py                  # /api/stories endpointid
 ├── data/
 │   ├── stories.example.json       # näidisandmed (versioneeritud)
-│   └── stories.json               # tegelik andmestik (gitignore'is; kopeeritakse esimesel käivitusel example'ist)
+│   ├── stories.json               # tegelik andmestik (gitignore'is; kopeeritakse esimesel käivitusel example'ist)
+│   └── mockups/                   # üleslaetud mockupid (gitignore'is)
 ├── public/
 │   ├── index.html                 # Kanban-laud + modalid
 │   ├── style.css                  # disain
 │   └── app.js                     # frontend loogika + SortableJS
 ├── tests/
 │   ├── __init__.py
-│   └── test_api.py                # 21 pytest testi
+│   └── test_api.py                # API pytest testid
 ├── docs/
 │   ├── screenshot.png             # Kanban-laud
 │   ├── screenshot-new-story.png   # Story loomise modal

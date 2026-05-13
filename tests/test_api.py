@@ -8,11 +8,16 @@ from fastapi.testclient import TestClient
 from app import storage
 from app.main import app
 
+PNG_BYTES = b"\x89PNG\r\n\x1a\n" + b"mockup"
+JPEG_BYTES = b"\xff\xd8\xff" + b"mockup"
+MAX_MOCKUP_SIZE = 5 * 1024 * 1024
+
 
 @pytest.fixture(autouse=True)
 def isolated_data(tmp_path, monkeypatch):
     """Suuna storage iga testi puhul ajutisele andmefailile."""
     data_file = tmp_path / "stories.json"
+    mockups_dir = tmp_path / "mockups"
     seed = [
         {
             "id": 1,
@@ -41,6 +46,7 @@ def isolated_data(tmp_path, monkeypatch):
     ]
     data_file.write_text(json.dumps(seed), encoding="utf-8")
     monkeypatch.setattr(storage, "DATA_FILE", data_file)
+    monkeypatch.setattr(storage, "MOCKUPS_DIR", mockups_dir)
     yield data_file
 
 
@@ -174,3 +180,97 @@ def test_delete_comment(client):
 def test_delete_comment_missing(client):
     r = client.delete("/api/stories/2/comments/999")
     assert r.status_code == 404
+
+
+def test_upload_mockup(client):
+    r = client.put(
+        "/api/stories/1/mockup",
+        files={"file": ("mockup.png", PNG_BYTES, "image/png")},
+    )
+    assert r.status_code == 200
+    mockup = r.json()["mockup"]
+    assert mockup["originalName"] == "mockup.png"
+    assert mockup["contentType"] == "image/png"
+    assert mockup["size"] == len(PNG_BYTES)
+    assert mockup["url"].startswith("/uploads/mockups/")
+    assert (storage.MOCKUPS_DIR / mockup["filename"]).exists()
+
+
+def test_upload_mockup_replaces_existing_file(client):
+    first = client.put(
+        "/api/stories/1/mockup",
+        files={"file": ("first.png", PNG_BYTES, "image/png")},
+    ).json()["mockup"]
+    second = client.put(
+        "/api/stories/1/mockup",
+        files={"file": ("second.jpg", JPEG_BYTES, "image/jpeg")},
+    )
+    assert second.status_code == 200
+    mockup = second.json()["mockup"]
+    assert mockup["originalName"] == "second.jpg"
+    assert mockup["contentType"] == "image/jpeg"
+    assert not (storage.MOCKUPS_DIR / first["filename"]).exists()
+    assert (storage.MOCKUPS_DIR / mockup["filename"]).exists()
+
+
+def test_delete_mockup(client):
+    uploaded = client.put(
+        "/api/stories/1/mockup",
+        files={"file": ("mockup.png", PNG_BYTES, "image/png")},
+    ).json()["mockup"]
+    r = client.delete("/api/stories/1/mockup")
+    assert r.status_code == 204
+    assert not (storage.MOCKUPS_DIR / uploaded["filename"]).exists()
+    assert client.get("/api/stories/1").json()["mockup"] is None
+
+
+def test_delete_story_removes_mockup_file(client):
+    uploaded = client.put(
+        "/api/stories/1/mockup",
+        files={"file": ("mockup.png", PNG_BYTES, "image/png")},
+    ).json()["mockup"]
+    r = client.delete("/api/stories/1")
+    assert r.status_code == 204
+    assert not (storage.MOCKUPS_DIR / uploaded["filename"]).exists()
+
+
+def test_upload_mockup_missing_story(client):
+    r = client.put(
+        "/api/stories/999/mockup",
+        files={"file": ("mockup.png", PNG_BYTES, "image/png")},
+    )
+    assert r.status_code == 404
+
+
+def test_delete_mockup_missing_story(client):
+    r = client.delete("/api/stories/999/mockup")
+    assert r.status_code == 404
+
+
+def test_delete_mockup_missing_mockup(client):
+    r = client.delete("/api/stories/1/mockup")
+    assert r.status_code == 404
+
+
+def test_upload_mockup_invalid_type(client):
+    r = client.put(
+        "/api/stories/1/mockup",
+        files={"file": ("mockup.txt", b"not an image", "text/plain")},
+    )
+    assert r.status_code == 422
+
+
+def test_upload_mockup_invalid_image_content(client):
+    r = client.put(
+        "/api/stories/1/mockup",
+        files={"file": ("mockup.png", b"not a real png", "image/png")},
+    )
+    assert r.status_code == 422
+
+
+def test_upload_mockup_too_large(client):
+    r = client.put(
+        "/api/stories/1/mockup",
+        files={"file": ("mockup.png", PNG_BYTES + b"x" * MAX_MOCKUP_SIZE, "image/png")},
+    )
+    assert r.status_code == 422

@@ -114,14 +114,24 @@
                             <span>Punktid *</span>
                             <input name="points" type="number" min="0" step="1" required>
                         </label>
-                        <label class="field">
-                            <span>Staatus</span>
-                            <select name="status">
+                        <div class="field">
+                            <label id="status-label" for="story-status">Staatus</label>
+                            <select id="story-status" class="native-select" name="status" tabindex="-1" aria-hidden="true">
                                 <option value="todo">Todo / Backlog</option>
                                 <option value="doing">Doing</option>
                                 <option value="done">Done</option>
                             </select>
-                        </label>
+                            <div class="custom-select" data-status-select>
+                                <button class="custom-select-trigger" id="status-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="status-label status-trigger-value">
+                                    <span id="status-trigger-value">Todo / Backlog</span>
+                                </button>
+                                <div class="custom-select-menu" role="listbox" aria-labelledby="status-label" hidden>
+                                    <button type="button" class="custom-select-option" role="option" data-value="todo" aria-selected="true">Todo / Backlog</button>
+                                    <button type="button" class="custom-select-option" role="option" data-value="doing" aria-selected="false">Doing</button>
+                                    <button type="button" class="custom-select-option" role="option" data-value="done" aria-selected="false">Done</button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <fieldset class="field">
                         <legend>Vastuvõtutingimused * (vähemalt 1)</legend>
@@ -135,6 +145,20 @@
                     <button type="submit" class="btn btn-primary">Salvesta</button>
                 </footer>
             </form>
+        </div>
+    </div>
+
+    <div id="mockup-viewer-root" class="modal-root mockup-viewer-root" hidden>
+        <div class="modal-backdrop" data-close></div>
+        <div class="mockup-viewer" role="dialog" aria-modal="true" aria-labelledby="mockup-viewer-title">
+            <header class="modal-header">
+                <h2 id="mockup-viewer-title">Mockup</h2>
+                <button class="modal-close btn" data-close aria-label="Sulge">✕</button>
+            </header>
+            <div class="mockup-viewer-body">
+                <img id="mockup-viewer-image" class="mockup-viewer-image" alt="">
+                <p id="mockup-viewer-caption" class="comment-meta"></p>
+            </div>
         </div>
     </div>
 </body>

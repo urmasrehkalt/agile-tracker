@@ -11,6 +11,15 @@ class Comment(BaseModel):
     createdAt: str
 
 
+class Mockup(BaseModel):
+    filename: str = Field(min_length=1)
+    originalName: str = Field(min_length=1)
+    contentType: str = Field(min_length=1)
+    size: int = Field(ge=1)
+    url: str = Field(min_length=1)
+    createdAt: str
+
+
 class Story(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -22,6 +31,7 @@ class Story(BaseModel):
     priority: int = 0
     acceptanceCriteria: list[str] = Field(min_length=1)
     comments: list[Comment] = []
+    mockup: Mockup | None = None
     createdAt: str
     updatedAt: str
 

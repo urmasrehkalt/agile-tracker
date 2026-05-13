@@ -9,6 +9,7 @@ from typing import Any
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 DATA_FILE = DATA_DIR / "stories.json"
 EXAMPLE_FILE = DATA_DIR / "stories.example.json"
+MOCKUPS_DIR = DATA_DIR / "mockups"
 
 _lock = Lock()
 
@@ -25,6 +26,19 @@ def _ensure_file() -> None:
         shutil.copy(EXAMPLE_FILE, DATA_FILE)
     else:
         DATA_FILE.write_text("[]", encoding="utf-8")
+
+
+def ensure_mockups_dir() -> Path:
+    MOCKUPS_DIR.mkdir(parents=True, exist_ok=True)
+    return MOCKUPS_DIR
+
+
+def delete_mockup_file(filename: str | None) -> None:
+    if not filename:
+        return
+    path = MOCKUPS_DIR / Path(filename).name
+    if path.exists() and path.is_file():
+        path.unlink()
 
 
 def load_all() -> list[dict[str, Any]]:

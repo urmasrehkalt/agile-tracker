@@ -1,5 +1,7 @@
 const API = "/api/stories";
 const THEME_KEY = "agiilne-tracker-theme";
+const MOCKUP_MAX_SIZE = 5 * 1024 * 1024;
+const MOCKUP_TYPES = ["image/png", "image/jpeg", "image/webp"];
 
 const state = {
     stories: [],
@@ -90,6 +92,21 @@ function clearAppStatus() {
     setAppStatus("");
 }
 
+function formatFileSize(size) {
+    if (!Number.isFinite(size)) return "";
+    if (size < 1024) return `${size} B`;
+    if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+    return `${(size / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function validateMockupFile(file) {
+    if (!file) return "Vali mockupi fail.";
+    if (!MOCKUP_TYPES.includes(file.type)) return "Lubatud mockupi tüübid on PNG, JPEG ja WebP.";
+    if (file.size > MOCKUP_MAX_SIZE) return "Mockupi maksimaalne suurus on 5 MB.";
+    if (file.size === 0) return "Mockupi fail ei tohi olla tühi.";
+    return "";
+}
+
 function renderCard(story) {
     const card = document.createElement("article");
     card.className = "card";
@@ -110,6 +127,7 @@ function renderCard(story) {
         <div class="card-metrics">
             <span class="metric-badge">${criteriaCount} AC</span>
             <span class="metric-badge">${commentCount} kommentaari</span>
+            ${story.mockup ? `<span class="metric-badge mockup-badge">Mockup</span>` : ""}
         </div>
     `;
     return card;
@@ -176,6 +194,9 @@ const modal = {
     form: null,
     error: null,
     criteriaList: null,
+    statusSelect: null,
+    statusMenu: null,
+    statusTrigger: null,
     editingId: null,
     open(story = null) {
         this.editingId = story ? story.id : null;
@@ -190,11 +211,13 @@ const modal = {
             this.form.description.value = story.description || "";
             this.form.points.value = story.points;
             this.form.status.value = story.status;
+            this.syncStatusSelect();
             for (const c of story.acceptanceCriteria || []) this.addCriterion(c);
             if (!(story.acceptanceCriteria || []).length) this.addCriterion();
         } else {
             headerEl.textContent = "Uus story";
             this.addCriterion();
+            this.syncStatusSelect();
         }
         this.root.hidden = false;
         const first = this.form.querySelector("input[name=title]");
@@ -232,6 +255,27 @@ const modal = {
     showError(msg) {
         this.error.textContent = msg;
         this.error.hidden = false;
+    },
+    syncStatusSelect() {
+        if (!this.statusSelect || !this.statusTrigger || !this.statusMenu) return;
+        const selected = this.statusSelect.selectedOptions[0];
+        const label = selected ? selected.textContent : "Todo / Backlog";
+        document.getElementById("status-trigger-value").textContent = label;
+        this.statusMenu.querySelectorAll(".custom-select-option").forEach((option) => {
+            const isSelected = option.dataset.value === this.statusSelect.value;
+            option.setAttribute("aria-selected", String(isSelected));
+        });
+    },
+    closeStatusSelect() {
+        if (!this.statusMenu || !this.statusTrigger) return;
+        this.statusMenu.hidden = true;
+        this.statusTrigger.setAttribute("aria-expanded", "false");
+    },
+    toggleStatusSelect() {
+        if (!this.statusMenu || !this.statusTrigger) return;
+        const isOpen = !this.statusMenu.hidden;
+        this.statusMenu.hidden = isOpen;
+        this.statusTrigger.setAttribute("aria-expanded", String(!isOpen));
     },
 };
 
@@ -289,6 +333,28 @@ async function deleteComment(storyId, commentId) {
     }
 }
 
+async function uploadMockup(storyId, file) {
+    const fd = new FormData();
+    fd.append("file", file);
+    const res = await fetch(`${API}/${storyId}/mockup`, {
+        method: "PUT",
+        body: fd,
+    });
+    if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(formatValidationError(data.detail) || `Mockupi salvestamine ebaõnnestus (HTTP ${res.status})`);
+    }
+    return res.json();
+}
+
+async function deleteMockup(storyId) {
+    const res = await fetch(`${API}/${storyId}/mockup`, { method: "DELETE" });
+    if (!res.ok && res.status !== 204) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(formatValidationError(data.detail) || `Mockupi kustutamine ebaõnnestus (HTTP ${res.status})`);
+    }
+}
+
 async function patchStatus(id, status) {
     const res = await fetch(`${API}/${id}/status`, {
         method: "PATCH",
@@ -325,14 +391,35 @@ function initModal() {
     modal.form = document.getElementById("story-form");
     modal.error = document.getElementById("form-error");
     modal.criteriaList = document.getElementById("criteria-list");
+    modal.statusSelect = document.getElementById("story-status");
+    modal.statusTrigger = document.getElementById("status-trigger");
+    modal.statusMenu = document.querySelector("[data-status-select] .custom-select-menu");
 
     document.getElementById("add-story").addEventListener("click", () => modal.open());
     document.getElementById("add-criterion").addEventListener("click", () => modal.addCriterion());
+
+    modal.statusTrigger.addEventListener("click", () => modal.toggleStatusSelect());
+    modal.statusMenu.querySelectorAll(".custom-select-option").forEach((option) => {
+        option.addEventListener("click", () => {
+            modal.statusSelect.value = option.dataset.value;
+            modal.syncStatusSelect();
+            modal.closeStatusSelect();
+            modal.statusTrigger.focus();
+        });
+    });
+    document.addEventListener("click", (e) => {
+        if (!e.target.closest("[data-status-select]")) modal.closeStatusSelect();
+    });
 
     modal.root.querySelectorAll("[data-close]").forEach((el) => {
         el.addEventListener("click", () => modal.close());
     });
     document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && modal.statusMenu && !modal.statusMenu.hidden) {
+            modal.closeStatusSelect();
+            modal.statusTrigger.focus();
+            return;
+        }
         if (e.key === "Escape" && !modal.root.hidden) modal.close();
     });
 
@@ -377,6 +464,7 @@ const detail = {
                     <span class="comment-meta">${escapeHtml(c.createdAt || "")}</span>
                 </li>
             `).join("");
+        const mockupHtml = this.renderMockup(story);
         this.body.innerHTML = `
             <div class="detail-meta">
                 <span class="status-badge status-${story.status}">${story.status}</span>
@@ -392,7 +480,14 @@ const detail = {
                 <h3>Vastuvõtutingimused</h3>
                 <ul>${criteriaHtml || "<li>—</li>"}</ul>
             </div>
-            <div class="detail-section">
+            <button type="button" class="btn btn-ghost detail-edit-inline" id="detail-edit-inline">Muuda kirjeldust ja tingimusi</button>
+            <div class="detail-section mockup-section">
+                <h3>Mockup</h3>
+                ${mockupHtml}
+                <input id="mockup-file" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+                <p class="form-error" id="mockup-error" hidden></p>
+            </div>
+            <div class="detail-section comments-section">
                 <h3>Kommentaarid</h3>
                 <ul class="comments-list">${commentsHtml || "<li class=\"comment-meta\">Veel pole kommentaare.</li>"}</ul>
                 <form class="comment-form" id="comment-form">
@@ -402,8 +497,111 @@ const detail = {
                 <p class="form-error" id="comment-error" hidden></p>
             </div>
         `;
+        this.body.querySelector("#detail-edit-inline").addEventListener("click", () => openCurrentStoryEditor());
+        this.bindMockupEvents(story);
         this.bindCommentEvents();
         this.root.hidden = false;
+    },
+    renderMockup(story) {
+        const mockup = story.mockup;
+        if (mockup) {
+            return `
+                <div class="mockup-preview">
+                    <button type="button" class="mockup-thumb-button" id="mockup-open" aria-label="Ava mockup suurelt">
+                        <img class="mockup-thumb" src="${escapeHtml(mockup.url)}" alt="Mockup: ${escapeHtml(mockup.originalName)}">
+                    </button>
+                    <div class="mockup-info">
+                        <strong>${escapeHtml(mockup.originalName)}</strong>
+                        <span>${escapeHtml(mockup.contentType)} · ${formatFileSize(mockup.size)} · ${escapeHtml(mockup.createdAt || "")}</span>
+                        <div class="mockup-actions">
+                            <button type="button" class="btn" id="mockup-open-action">Ava suurelt</button>
+                            <button type="button" class="btn" id="mockup-replace">Asenda</button>
+                            <button type="button" class="btn btn-danger" id="mockup-delete">Kustuta</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        return `
+            <div class="mockup-dropzone" id="mockup-dropzone" aria-label="Lisa mockup lohistades, failivalikuga või clipboardist kleepides">
+                <strong>Lohista mockup siia</strong>
+                <span>Või vali PNG, JPEG või WebP fail kuni 5 MB. Clipboardist kleepimine töötab, kui detailvaade on avatud.</span>
+                <button type="button" class="btn" id="mockup-pick">Vali fail</button>
+            </div>
+        `;
+    },
+    showMockupError(msg) {
+        const errorEl = this.body.querySelector("#mockup-error");
+        if (!errorEl) return;
+        errorEl.textContent = msg;
+        errorEl.hidden = false;
+    },
+    async handleMockupFile(file) {
+        const story = findStory(this.currentId);
+        if (!story) return;
+        const validation = validateMockupFile(file);
+        if (validation) return this.showMockupError(validation);
+        if (story.mockup && !confirm("Asenda olemasolev mockup uuega?")) return;
+        try {
+            await uploadMockup(story.id, file);
+            await reload();
+            const updated = findStory(story.id);
+            if (updated) this.open(updated);
+        } catch (err) {
+            this.showMockupError(err.message);
+        }
+    },
+    bindMockupEvents(story) {
+        const fileInput = this.body.querySelector("#mockup-file");
+        const pickButtons = this.body.querySelectorAll("#mockup-pick, #mockup-replace");
+        const openButtons = this.body.querySelectorAll("#mockup-open, #mockup-open-action");
+        const dropzone = this.body.querySelector("#mockup-dropzone");
+        const deleteBtn = this.body.querySelector("#mockup-delete");
+
+        pickButtons.forEach((btn) => btn.addEventListener("click", () => fileInput.click()));
+        fileInput.addEventListener("change", () => {
+            const file = fileInput.files && fileInput.files[0];
+            if (file) this.handleMockupFile(file);
+            fileInput.value = "";
+        });
+        openButtons.forEach((btn) => btn.addEventListener("click", () => {
+            if (story.mockup) mockupViewer.open(story.mockup);
+        }));
+        if (deleteBtn) {
+            deleteBtn.addEventListener("click", async () => {
+                if (!confirm("Kustuta mockup?")) return;
+                try {
+                    await deleteMockup(story.id);
+                    await reload();
+                    const updated = findStory(story.id);
+                    if (updated) this.open(updated);
+                } catch (err) {
+                    this.showMockupError(err.message);
+                }
+            });
+        }
+        if (dropzone) {
+            dropzone.addEventListener("click", (e) => {
+                if (e.target.closest("button")) return;
+                fileInput.click();
+            });
+            ["dragenter", "dragover"].forEach((eventName) => {
+                dropzone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    dropzone.classList.add("is-dragover");
+                });
+            });
+            ["dragleave", "drop"].forEach((eventName) => {
+                dropzone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    dropzone.classList.remove("is-dragover");
+                });
+            });
+            dropzone.addEventListener("drop", (e) => {
+                const file = [...(e.dataTransfer.files || [])].find((f) => f.type.startsWith("image/"));
+                if (file) this.handleMockupFile(file);
+            });
+        }
     },
     bindCommentEvents() {
         const form = this.body.querySelector("#comment-form");
@@ -453,8 +651,32 @@ const detail = {
     },
 };
 
+const mockupViewer = {
+    root: null,
+    image: null,
+    caption: null,
+    open(mockup) {
+        this.image.src = mockup.url;
+        this.image.alt = `Mockup: ${mockup.originalName}`;
+        this.caption.textContent = `${mockup.originalName} · ${formatFileSize(mockup.size)}`;
+        this.root.hidden = false;
+    },
+    close() {
+        this.root.hidden = true;
+        this.image.src = "";
+        this.caption.textContent = "";
+    },
+};
+
 function findStory(id) {
     return state.stories.find((s) => s.id === id);
+}
+
+function openCurrentStoryEditor() {
+    const story = findStory(detail.currentId);
+    if (!story) return;
+    detail.close();
+    modal.open(story);
 }
 
 function initDetail() {
@@ -464,13 +686,22 @@ function initDetail() {
         el.addEventListener("click", () => detail.close());
     });
     document.addEventListener("keydown", (e) => {
+        const viewer = document.getElementById("mockup-viewer-root");
+        if (viewer && !viewer.hidden) return;
         if (e.key === "Escape" && !detail.root.hidden) detail.close();
     });
+    document.addEventListener("paste", (e) => {
+        if (detail.root.hidden || detail.currentId == null) return;
+        const items = [...(e.clipboardData?.items || [])];
+        const imageItem = items.find((item) => item.kind === "file" && item.type.startsWith("image/"));
+        if (!imageItem) return;
+        const file = imageItem.getAsFile();
+        if (!file) return;
+        e.preventDefault();
+        detail.handleMockupFile(file);
+    });
     document.getElementById("detail-edit").addEventListener("click", () => {
-        const story = findStory(detail.currentId);
-        if (!story) return;
-        detail.close();
-        modal.open(story);
+        openCurrentStoryEditor();
     });
     document.getElementById("detail-delete").addEventListener("click", async () => {
         const story = findStory(detail.currentId);
@@ -500,6 +731,18 @@ function initDetail() {
         const id = Number(card.dataset.id);
         const story = findStory(id);
         if (story) detail.open(story);
+    });
+}
+
+function initMockupViewer() {
+    mockupViewer.root = document.getElementById("mockup-viewer-root");
+    mockupViewer.image = document.getElementById("mockup-viewer-image");
+    mockupViewer.caption = document.getElementById("mockup-viewer-caption");
+    mockupViewer.root.querySelectorAll("[data-close]").forEach((el) => {
+        el.addEventListener("click", () => mockupViewer.close());
+    });
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && !mockupViewer.root.hidden) mockupViewer.close();
     });
 }
 
@@ -555,6 +798,7 @@ document.addEventListener("DOMContentLoaded", () => {
     initTheme();
     initModal();
     initDetail();
+    initMockupViewer();
     initSortable();
     initFilters();
     reload();
