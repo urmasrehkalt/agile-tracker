@@ -2,7 +2,18 @@ const API = "/api/stories";
 
 const state = {
     stories: [],
+    filters: {
+        query: "",
+        minPoints: 0,
+    },
 };
+
+function matchesFilters(story) {
+    const q = state.filters.query.trim().toLowerCase();
+    if (q && !story.title.toLowerCase().includes(q)) return false;
+    if (story.points < state.filters.minPoints) return false;
+    return true;
+}
 
 async function fetchStories() {
     const res = await fetch(API);
@@ -38,6 +49,7 @@ function renderCard(story) {
 function renderBoard() {
     const byStatus = { todo: [], doing: [], done: [] };
     for (const s of state.stories) {
+        if (!matchesFilters(s)) continue;
         if (byStatus[s.status]) byStatus[s.status].push(s);
     }
     byStatus.todo.sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0) || a.id - b.id);
@@ -433,9 +445,23 @@ function initSortable() {
     });
 }
 
+function initFilters() {
+    const searchEl = document.getElementById("search");
+    const filterEl = document.getElementById("filter-points");
+    searchEl.addEventListener("input", () => {
+        state.filters.query = searchEl.value;
+        renderBoard();
+    });
+    filterEl.addEventListener("change", () => {
+        state.filters.minPoints = Number(filterEl.value) || 0;
+        renderBoard();
+    });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
     initModal();
     initDetail();
     initSortable();
+    initFilters();
     reload();
 });
