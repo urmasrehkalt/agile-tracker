@@ -73,4 +73,117 @@ async function reload() {
     }
 }
 
-document.addEventListener("DOMContentLoaded", reload);
+const modal = {
+    root: null,
+    form: null,
+    error: null,
+    criteriaList: null,
+    open() {
+        this.error.hidden = true;
+        this.error.textContent = "";
+        this.form.reset();
+        this.criteriaList.innerHTML = "";
+        this.addCriterion();
+        this.root.hidden = false;
+        const first = this.form.querySelector("input[name=title]");
+        if (first) first.focus();
+    },
+    close() {
+        this.root.hidden = true;
+    },
+    addCriterion(value = "") {
+        const row = document.createElement("div");
+        row.className = "criterion";
+        row.innerHTML = `
+            <input type="text" placeholder="Vastuvõtutingimus" value="${escapeHtml(value)}">
+            <button type="button" class="remove" aria-label="Eemalda">✕</button>
+        `;
+        row.querySelector(".remove").addEventListener("click", () => {
+            if (this.criteriaList.children.length > 1) row.remove();
+        });
+        this.criteriaList.appendChild(row);
+    },
+    collect() {
+        const fd = new FormData(this.form);
+        const criteria = [...this.criteriaList.querySelectorAll("input")]
+            .map((i) => i.value.trim())
+            .filter((v) => v.length > 0);
+        return {
+            title: String(fd.get("title") || "").trim(),
+            description: String(fd.get("description") || "").trim(),
+            points: Number(fd.get("points")),
+            status: String(fd.get("status") || "todo"),
+            acceptanceCriteria: criteria,
+        };
+    },
+    showError(msg) {
+        this.error.textContent = msg;
+        this.error.hidden = false;
+    },
+};
+
+async function submitNewStory(payload) {
+    const res = await fetch(API, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        const detail = formatValidationError(data.detail);
+        throw new Error(detail || `Salvestamine ebaõnnestus (HTTP ${res.status})`);
+    }
+    return res.json();
+}
+
+function formatValidationError(detail) {
+    if (!detail) return "";
+    if (typeof detail === "string") return detail;
+    if (Array.isArray(detail)) {
+        return detail
+            .map((d) => `${(d.loc || []).slice(-1)[0] || "väli"}: ${d.msg || "vigane"}`)
+            .join("; ");
+    }
+    return JSON.stringify(detail);
+}
+
+function initModal() {
+    modal.root = document.getElementById("modal-root");
+    modal.form = document.getElementById("story-form");
+    modal.error = document.getElementById("form-error");
+    modal.criteriaList = document.getElementById("criteria-list");
+
+    document.getElementById("add-story").addEventListener("click", () => modal.open());
+    document.getElementById("add-criterion").addEventListener("click", () => modal.addCriterion());
+
+    modal.root.querySelectorAll("[data-close]").forEach((el) => {
+        el.addEventListener("click", () => modal.close());
+    });
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && !modal.root.hidden) modal.close();
+    });
+
+    modal.form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const payload = modal.collect();
+        if (!payload.title) return modal.showError("Pealkiri on kohustuslik.");
+        if (!Number.isInteger(payload.points) || payload.points < 0) {
+            return modal.showError("Punktid peavad olema mittenegatiivne täisarv.");
+        }
+        if (payload.acceptanceCriteria.length === 0) {
+            return modal.showError("Lisa vähemalt üks vastuvõtutingimus.");
+        }
+        try {
+            await submitNewStory(payload);
+            modal.close();
+            await reload();
+        } catch (err) {
+            modal.showError(err.message);
+        }
+    });
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    initModal();
+    reload();
+});
