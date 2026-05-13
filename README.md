@@ -88,12 +88,15 @@ Esimesel käivitusel kopeeritakse `data/stories.example.json` failist 3 näidiss
 ### Testide käivitamine
 
 ```bash
+# Aktiveeri venv kõigepealt (kui pole)
+source .venv/bin/activate
+
+# Käivita kõik testid
 pytest -v        # 21 API testi
+
+# Või otse ilma aktiveerimata:
+.venv/bin/pytest -v
 ```
-
-### Ekraanipildi tegemine
-
-Käivita server, ava `http://localhost:8000`, salvesta ekraanipilt asukohta `docs/screenshot.png` ja commit see eraldi.
 
 ---
 
@@ -139,10 +142,11 @@ Kooliülesande miinimum- ja lisanõuded on täidetud. Edasiarendamiseks võimali
 
 ## 5. Millised olid kõige keerulisemad kohad?
 
-- **Reorder endpointi route'imine**: `PATCH /api/stories/reorder` ja `PATCH /api/stories/{id}/...` võivad konflikti minna, kui FastAPI router lubab `reorder` stringi `story_id` rolli. Lahendus: deklareerida `/reorder` route enne `/{story_id}/...` patterne. Eraldatud kahel segmendil ei oleks teoreetiliselt konflikti, kuid eksplitseerimine annab kindluse.
+- **Reorder endpointi route'imine**: `PATCH /api/stories/reorder` ja `PATCH /api/stories/{id}/...` võivad konflikti minna, kui FastAPI router lubab `reorder` stringi `story_id` rolli. Lahendus: deklareerida `/reorder` route enne `/{story_id}/...` patterne, et FastAPI ei satuks valele rajale.
 - **SortableJS koos rerenderiga**: kogu Kanban-laud rerendreeritakse iga muudatuse järel, kuid Sortable instants on seotud konteineri elemendiga. Iga `renderBoard` kõne säilitab konteineri (asendab vaid `innerHTML`), nii et Sortable jätkab töötamist.
+- **Modali paigutus footer-iga**: vorm vajab `submit` nupu olemasolu enda sees (HTML reegel), kuid disainilt peaks Salvesta/Tühista olema visuaalselt eraldatud halli ribana all. Lahendus: vorm omab eraldi `.modal-body` div'i (skrollitav sisu) ja `.modal-footer` rida — sama footer-pattern töötab nii ettedefineeritud vormiga (lisamise modal) kui ka dünaamiliselt täidetud detail-modaliga.
 - **Atomic JSON kirjutamine**: kasutusel `.tmp` + `os.replace` + `fsync`, et katkenud kirjutus ei rikuks andmefaili. Lukuga (`threading.Lock`) kaitstud paralleelsete päringute eest.
-- **Estonian täht repo nimes vs ülesande nimi**: ülesanne ütleb `eesnimi-agile-tracker`, kuid repo on `urmas-agiilne-tracker`. Sisuline nõue on täidetud.
+- **start.sh taustprotsessi haldus**: PID-faili kirjutamine `nohup ... &` kõrval, healthcheck-ootus käivitamise järel, kordustäitmisel graceful SIGTERM → SIGKILL kuni 5s. Kontrollib ka, et eelmine protsess pole zombie (`kill -0`).
 
 ---
 
@@ -192,22 +196,29 @@ Kõik endpointid on dokumenteeritud Swaggeris: `http://localhost:8000/docs`.
 ```
 urmas-agiilne-tracker/
 ├── app/
-│   ├── main.py          # FastAPI app, staatiline mount, router
-│   ├── models.py        # Pydantic mudelid + validatsioonid
-│   ├── storage.py       # JSON-faili read/write (atomic)
-│   └── routes.py        # /api/stories endpointid
+│   ├── __init__.py
+│   ├── main.py                    # FastAPI app, staatiline mount, router
+│   ├── models.py                  # Pydantic mudelid + validatsioonid
+│   ├── storage.py                 # JSON-faili read/write (atomic)
+│   └── routes.py                  # /api/stories endpointid
 ├── data/
-│   ├── stories.example.json   # näidisandmed
-│   └── stories.json           # genereeritakse esimesel käivitusel
+│   ├── stories.example.json       # näidisandmed (versioneeritud)
+│   └── stories.json               # tegelik andmestik (gitignore'is; kopeeritakse esimesel käivitusel example'ist)
 ├── public/
-│   ├── index.html       # Kanban-laud
-│   ├── style.css        # disain
-│   └── app.js           # frontend loogika + SortableJS
+│   ├── index.html                 # Kanban-laud + modalid
+│   ├── style.css                  # disain
+│   └── app.js                     # frontend loogika + SortableJS
 ├── tests/
-│   └── test_api.py      # 21 pytest testi
+│   ├── __init__.py
+│   └── test_api.py                # 21 pytest testi
 ├── docs/
-│   └── screenshot.png   # ekraanipilt
+│   ├── screenshot.png             # Kanban-laud
+│   ├── screenshot-new-story.png   # Story loomise modal
+│   └── screenshot-detail.png      # Story detailvaade
+├── start.sh                       # käivitatav skript (käivitab uvicorn taustal)
 ├── requirements.txt
+├── .env.example                   # ENVIRONMENT=development
+├── .gitignore
 └── README.md
 ```
 
