@@ -78,17 +78,32 @@ const modal = {
     form: null,
     error: null,
     criteriaList: null,
-    open() {
+    editingId: null,
+    open(story = null) {
+        this.editingId = story ? story.id : null;
         this.error.hidden = true;
         this.error.textContent = "";
         this.form.reset();
         this.criteriaList.innerHTML = "";
-        this.addCriterion();
+        const headerEl = document.getElementById("modal-title");
+        if (story) {
+            headerEl.textContent = `Muuda story #${story.id}`;
+            this.form.title.value = story.title;
+            this.form.description.value = story.description || "";
+            this.form.points.value = story.points;
+            this.form.status.value = story.status;
+            for (const c of story.acceptanceCriteria || []) this.addCriterion(c);
+            if (!(story.acceptanceCriteria || []).length) this.addCriterion();
+        } else {
+            headerEl.textContent = "Uus story";
+            this.addCriterion();
+        }
         this.root.hidden = false;
         const first = this.form.querySelector("input[name=title]");
         if (first) first.focus();
     },
     close() {
+        this.editingId = null;
         this.root.hidden = true;
     },
     addCriterion(value = "") {
@@ -136,6 +151,26 @@ async function submitNewStory(payload) {
     return res.json();
 }
 
+async function updateStory(id, payload) {
+    const res = await fetch(`${API}/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(formatValidationError(data.detail) || `Uuendamine ebaõnnestus (HTTP ${res.status})`);
+    }
+    return res.json();
+}
+
+async function deleteStory(id) {
+    const res = await fetch(`${API}/${id}`, { method: "DELETE" });
+    if (!res.ok && res.status !== 204) {
+        throw new Error(`Kustutamine ebaõnnestus (HTTP ${res.status})`);
+    }
+}
+
 function formatValidationError(detail) {
     if (!detail) return "";
     if (typeof detail === "string") return detail;
@@ -174,7 +209,11 @@ function initModal() {
             return modal.showError("Lisa vähemalt üks vastuvõtutingimus.");
         }
         try {
-            await submitNewStory(payload);
+            if (modal.editingId != null) {
+                await updateStory(modal.editingId, payload);
+            } else {
+                await submitNewStory(payload);
+            }
             modal.close();
             await reload();
         } catch (err) {
@@ -183,7 +222,82 @@ function initModal() {
     });
 }
 
+const detail = {
+    root: null,
+    body: null,
+    currentId: null,
+    open(story) {
+        this.currentId = story.id;
+        document.getElementById("detail-title").textContent = `#${story.id}: ${story.title}`;
+        const criteriaHtml = (story.acceptanceCriteria || [])
+            .map((c) => `<li>${escapeHtml(c)}</li>`).join("");
+        this.body.innerHTML = `
+            <div class="detail-meta">
+                <span class="status-badge status-${story.status}">${story.status}</span>
+                <span class="points-badge">${story.points}p</span>
+                <span>Loodud: ${escapeHtml(story.createdAt || "")}</span>
+                <span>Uuendatud: ${escapeHtml(story.updatedAt || "")}</span>
+            </div>
+            <div class="detail-section">
+                <h3>Kirjeldus</h3>
+                <p>${escapeHtml(story.description || "—")}</p>
+            </div>
+            <div class="detail-section">
+                <h3>Vastuvõtutingimused</h3>
+                <ul>${criteriaHtml || "<li>—</li>"}</ul>
+            </div>
+        `;
+        this.root.hidden = false;
+    },
+    close() {
+        this.currentId = null;
+        this.root.hidden = true;
+    },
+};
+
+function findStory(id) {
+    return state.stories.find((s) => s.id === id);
+}
+
+function initDetail() {
+    detail.root = document.getElementById("detail-root");
+    detail.body = document.getElementById("detail-body");
+    detail.root.querySelectorAll("[data-close]").forEach((el) => {
+        el.addEventListener("click", () => detail.close());
+    });
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && !detail.root.hidden) detail.close();
+    });
+    document.getElementById("detail-edit").addEventListener("click", () => {
+        const story = findStory(detail.currentId);
+        if (!story) return;
+        detail.close();
+        modal.open(story);
+    });
+    document.getElementById("detail-delete").addEventListener("click", async () => {
+        const story = findStory(detail.currentId);
+        if (!story) return;
+        if (!confirm(`Kustuta story "${story.title}"?`)) return;
+        try {
+            await deleteStory(story.id);
+            detail.close();
+            await reload();
+        } catch (err) {
+            showError(err.message);
+        }
+    });
+
+    document.querySelector(".board").addEventListener("click", (e) => {
+        const card = e.target.closest(".card");
+        if (!card) return;
+        const id = Number(card.dataset.id);
+        const story = findStory(id);
+        if (story) detail.open(story);
+    });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
     initModal();
+    initDetail();
     reload();
 });

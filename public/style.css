@@ -350,3 +350,45 @@ fieldset.field legend {
     border-radius: 0.5rem;
     padding: 0.5rem 0.7rem;
 }
+
+.detail-section {
+    margin-bottom: 0.75rem;
+}
+
+.detail-section h3 {
+    margin: 0 0 0.3rem;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+}
+
+.detail-section p,
+.detail-section ul {
+    margin: 0;
+}
+
+.detail-section ul {
+    padding-left: 1.1rem;
+    color: var(--text);
+    font-size: 0.95rem;
+}
+
+.detail-meta {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    color: var(--muted);
+    font-size: 0.85rem;
+}
+
+.status-badge {
+    background: var(--bg);
+    padding: 0.1rem 0.5rem;
+    border-radius: 999px;
+    font-weight: 600;
+}
+
+.status-badge.status-todo { color: var(--todo); }
+.status-badge.status-doing { color: var(--doing); }
+.status-badge.status-done { color: var(--done); }
