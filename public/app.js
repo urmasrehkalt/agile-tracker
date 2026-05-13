@@ -191,6 +191,26 @@ async function deleteComment(storyId, commentId) {
     }
 }
 
+async function patchStatus(id, status) {
+    const res = await fetch(`${API}/${id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+    });
+    if (!res.ok) throw new Error(`Staatuse muutmine ebaõnnestus (HTTP ${res.status})`);
+    return res.json();
+}
+
+async function reorderBacklog(orderIds) {
+    const res = await fetch(`${API}/reorder`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ order: orderIds }),
+    });
+    if (!res.ok) throw new Error(`Järjekorra salvestamine ebaõnnestus (HTTP ${res.status})`);
+    return res.json();
+}
+
 function formatValidationError(detail) {
     if (!detail) return "";
     if (typeof detail === "string") return detail;
@@ -376,8 +396,43 @@ function initDetail() {
     });
 }
 
+function initSortable() {
+    if (typeof Sortable === "undefined") return;
+    const columns = ["todo", "doing", "done"];
+    columns.forEach((status) => {
+        const el = document.getElementById(`col-${status}`);
+        if (!el) return;
+        Sortable.create(el, {
+            group: "kanban",
+            animation: 150,
+            ghostClass: "sortable-ghost",
+            dragClass: "sortable-drag",
+            onEnd: async (evt) => {
+                const id = Number(evt.item.dataset.id);
+                const toStatus = evt.to.id.replace("col-", "");
+                const fromStatus = evt.from.id.replace("col-", "");
+                try {
+                    if (toStatus !== fromStatus) {
+                        await patchStatus(id, toStatus);
+                    }
+                    if (toStatus === "todo") {
+                        const ids = [...document.getElementById("col-todo").querySelectorAll(".card")]
+                            .map((c) => Number(c.dataset.id));
+                        if (ids.length) await reorderBacklog(ids);
+                    }
+                    await reload();
+                } catch (err) {
+                    showError(err.message);
+                    await reload();
+                }
+            },
+        });
+    });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
     initModal();
     initDetail();
+    initSortable();
     reload();
 });
