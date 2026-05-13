@@ -12,9 +12,17 @@ Veebirakendus user story'de haldamiseks Kanban-laual (Todo / Doing / Done). Teht
 
 ![Uue story modal](docs/screenshot-new-story.png)
 
-### Story detailvaade ja kommentaarid
+### Story detailvaade ja mockup
 
 ![Story detailvaade](docs/screenshot-detail.png)
+
+### Projektide haldamine
+
+![Projektide modal](docs/screenshot-projects.png)
+
+### Tume teema
+
+![Tume teema](docs/screenshot-dark.png)
 
 ---
 
@@ -127,7 +135,11 @@ pytest -v        # API testid
 - Drag-and-drop töötab **kõikide** veergude vahel (mitte ainult backlogis)
 - Story detailvaade modalis koos kõikide väljadega ja loomise/muutmise ajaga
 - Kommentaaride kustutamine
-- HTTP staatusekoodid: 200, 201, 204, 404, 422, 409
+- Tume/hele teema (`Tume`/`Hele` nupp topbar-is, salvestub `localStorage`-isse, järgib esimesel käivitusel süsteemi `prefers-color-scheme`)
+- Kohandatud dropdown-id (`custom-select`) — projektivalija, staatuse- ja punktifilter on aksessibiilsed pseudo-`<select>`-id natiivse asemel, et oleks ühtne disain ka Safari/Firefoxis
+- Mockup-eelvaade story kaardil — kui storyl on mockup, kuvatakse selle thumbnail otse kaardil; klikates avaneb täisvaates
+- Projekti värvivalija (`input[type="color"]`) — projekti vormis valitav värv kuvatakse projekti täpina (`.project-dot`)
+- HTTP staatusekoodid: 200, 201, 204, 404, 409, 422
 - 39 pytest API testi
 
 ---
