@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="color-scheme" content="light dark">
-    <title>Agiilne Tracker</title>
+    <title>Agile Tracker</title>
     <link rel="stylesheet" href="/style.css">
     <script defer src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
     <script defer src="/app.js"></script>
@@ -12,8 +12,18 @@
 <body>
     <header class="topbar">
         <div class="brand">
-            <span class="eyebrow">Kanban töölaud</span>
-            <h1>Agiilne Tracker</h1>
+            <h1>Agile Tracker</h1>
+        </div>
+        <div class="project-switcher" data-project-switcher>
+            <button class="custom-select-trigger project-trigger" id="project-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="project-trigger-label project-trigger-value">
+                <span id="project-trigger-label" class="visually-hidden">Valitud projekt</span>
+                <span class="project-dot" id="project-trigger-dot" aria-hidden="true"></span>
+                <span id="project-trigger-value">Projekt</span>
+            </button>
+            <div class="custom-select-menu project-menu" id="project-menu" role="listbox" aria-labelledby="project-trigger-label" hidden>
+                <div id="project-options"></div>
+                <button type="button" class="custom-select-option manage-projects-option" id="manage-projects">Halda projekte</button>
+            </div>
         </div>
         <div class="toolbar">
             <label class="visually-hidden" for="search">Otsi story pealkirja järgi</label>
@@ -123,9 +133,15 @@
                     </label>
                     <div class="row">
                         <label class="field">
+                            <span>Projekt</span>
+                            <select name="projectId" id="story-project"></select>
+                        </label>
+                        <label class="field">
                             <span>Punktid *</span>
                             <input name="points" type="number" min="0" step="1" required>
                         </label>
+                    </div>
+                    <div class="row">
                         <div class="field">
                             <label id="status-label" for="story-status">Staatus</label>
                             <select id="story-status" class="native-select" name="status" tabindex="-1" aria-hidden="true">
@@ -157,6 +173,78 @@
                     <button type="submit" class="btn btn-primary">Salvesta</button>
                 </footer>
             </form>
+        </div>
+    </div>
+
+    <div id="projects-root" class="modal-root" hidden>
+        <div class="modal-backdrop" data-close></div>
+        <div class="modal projects-modal" role="dialog" aria-modal="true" aria-labelledby="projects-title">
+            <header class="modal-header">
+                <h2 id="projects-title">Projektid</h2>
+                <button class="modal-close btn" data-close aria-label="Sulge">✕</button>
+            </header>
+            <div class="modal-body projects-body">
+                <section class="projects-list-panel">
+                    <h3>Olemasolevad projektid</h3>
+                    <div id="projects-list" class="projects-list"></div>
+                </section>
+                <form id="project-form" class="project-form">
+                    <h3 id="project-form-title">Uus projekt</h3>
+                    <input type="hidden" name="id">
+                    <label class="field">
+                        <span>Nimi *</span>
+                        <input name="name" required maxlength="120">
+                    </label>
+                    <label class="field">
+                        <span>Kirjeldus</span>
+                        <textarea name="description" rows="3"></textarea>
+                    </label>
+                    <div class="row">
+                        <label class="field">
+                            <span>Värv</span>
+                            <input name="color" type="color" value="#2563eb">
+                        </label>
+                        <div class="field">
+                            <label id="project-status-label" for="project-status">Staatus</label>
+                            <select id="project-status" class="native-select" name="status" tabindex="-1" aria-hidden="true">
+                                <option value="active">Aktiivne</option>
+                                <option value="archived">Arhiveeritud</option>
+                            </select>
+                            <div class="custom-select" data-project-status-select>
+                                <button class="custom-select-trigger" id="project-status-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="project-status-label project-status-value">
+                                    <span id="project-status-value">Aktiivne</span>
+                                </button>
+                                <div class="custom-select-menu" role="listbox" aria-labelledby="project-status-label" hidden>
+                                    <button type="button" class="custom-select-option" role="option" data-value="active" aria-selected="true">Aktiivne</button>
+                                    <button type="button" class="custom-select-option" role="option" data-value="archived" aria-selected="false">Arhiveeritud</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <label class="field">
+                            <span>Omanik</span>
+                            <input name="owner">
+                        </label>
+                        <label class="field">
+                            <span>Klient</span>
+                            <input name="client">
+                        </label>
+                    </div>
+                    <label class="field">
+                        <span>Tähtaeg</span>
+                        <input name="deadline" type="date">
+                    </label>
+                    <p id="project-error" class="form-error" hidden></p>
+                    <div class="project-form-actions">
+                        <button type="button" class="btn" id="project-form-reset">Uus projekt</button>
+                        <button type="submit" class="btn btn-primary">Salvesta projekt</button>
+                    </div>
+                </form>
+            </div>
+            <footer class="modal-footer">
+                <button type="button" class="btn" data-close>Sulge</button>
+            </footer>
         </div>
     </div>
 

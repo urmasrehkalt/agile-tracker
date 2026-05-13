@@ -1,10 +1,12 @@
 [
   {
     "id": 1,
+    "number": 1,
     "title": "Kasutajana tahan lisada uue story, et saaksin tööülesande backlogi panna.",
     "description": "Vormi kaudu saab luua uue story Todo / Backlog veergu.",
     "status": "todo",
     "points": 3,
+    "projectId": 1,
     "priority": 1,
     "acceptanceCriteria": [
       "Vormis saab sisestada pealkirja.",
@@ -19,10 +21,12 @@
   },
   {
     "id": 2,
+    "number": 2,
     "title": "Kasutajana tahan muuta story staatust, et näidata töö edenemist.",
     "description": "Story liigutamisel veergude vahel muutub staatus.",
     "status": "doing",
     "points": 5,
+    "projectId": 1,
     "priority": 0,
     "acceptanceCriteria": [
       "Story staatust saab muuta.",
@@ -42,10 +46,12 @@
   },
   {
     "id": 3,
+    "number": 3,
     "title": "Kasutajana tahan lisada story juurde kommentaare, et arutelu oleks story juures nähtav.",
     "description": "Story detailis saab lisada kommentaare ajatempliga.",
     "status": "todo",
     "points": 3,
+    "projectId": 1,
     "priority": 2,
     "acceptanceCriteria": [
       "Kommentaari saab sisestada.",

@@ -1,0 +1,14 @@
+[
+  {
+    "id": 1,
+    "name": "Näidis",
+    "description": "Näidisprojekt olemasolevate story'de jaoks.",
+    "color": "#2563eb",
+    "status": "active",
+    "owner": "",
+    "client": "",
+    "deadline": "",
+    "createdAt": "2026-05-13 18:30",
+    "updatedAt": "2026-05-13 18:30"
+  }
+]

@@ -1,10 +1,14 @@
 const API = "/api/stories";
+const PROJECTS_API = "/api/projects";
 const THEME_KEY = "agiilne-tracker-theme";
+const PROJECT_KEY = "agiilne-tracker-project-id";
 const MOCKUP_MAX_SIZE = 5 * 1024 * 1024;
 const MOCKUP_TYPES = ["image/png", "image/jpeg", "image/webp"];
 
 const state = {
     stories: [],
+    projects: [],
+    selectedProjectId: null,
     filters: {
         query: "",
         minPoints: 0,
@@ -19,9 +23,18 @@ function matchesFilters(story) {
 }
 
 async function fetchStories() {
-    const res = await fetch(API);
+    const projectParam = state.selectedProjectId ? `?projectId=${state.selectedProjectId}` : "";
+    const res = await fetch(`${API}${projectParam}`);
     if (!res.ok) {
         throw new Error(`Andmete laadimine ebaõnnestus (HTTP ${res.status})`);
+    }
+    return res.json();
+}
+
+async function fetchProjects() {
+    const res = await fetch(PROJECTS_API);
+    if (!res.ok) {
+        throw new Error(`Projektide laadimine ebaõnnestus (HTTP ${res.status})`);
     }
     return res.json();
 }
@@ -92,6 +105,14 @@ function clearAppStatus() {
     setAppStatus("");
 }
 
+function currentProject() {
+    return state.projects.find((project) => project.id === state.selectedProjectId) || null;
+}
+
+function projectColor(project) {
+    return /^#[0-9a-f]{6}$/i.test(project?.color || "") ? project.color : "#2563eb";
+}
+
 function formatFileSize(size) {
     if (!Number.isFinite(size)) return "";
     if (size < 1024) return `${size} B`;
@@ -113,7 +134,7 @@ function renderCard(story) {
     card.dataset.id = story.id;
     card.tabIndex = 0;
     card.setAttribute("role", "button");
-    card.setAttribute("aria-label", `Ava story #${story.id}: ${story.title}`);
+    card.setAttribute("aria-label", `Ava story #${story.number}: ${story.title}`);
     const criteriaCount = (story.acceptanceCriteria || []).length;
     const commentCount = (story.comments || []).length;
     const description = String(story.description || "").trim();
@@ -121,7 +142,7 @@ function renderCard(story) {
     card.innerHTML = `
         <div class="card-meta">
             <span class="points-badge">${story.points}p</span>
-            <span class="card-id">#${story.id}</span>
+            <span class="card-id">#${story.number}</span>
         </div>
         ${mockup ? `
             <div class="card-mockup-preview" aria-hidden="true">
@@ -203,6 +224,7 @@ const modal = {
     statusSelect: null,
     statusMenu: null,
     statusTrigger: null,
+    projectSelect: null,
     editingId: null,
     open(story = null) {
         this.editingId = story ? story.id : null;
@@ -210,18 +232,21 @@ const modal = {
         this.error.textContent = "";
         this.form.reset();
         this.criteriaList.innerHTML = "";
+        this.populateProjectOptions();
         const headerEl = document.getElementById("modal-title");
         if (story) {
-            headerEl.textContent = `Muuda story #${story.id}`;
+            headerEl.textContent = `Muuda story #${story.number}`;
             this.form.title.value = story.title;
             this.form.description.value = story.description || "";
             this.form.points.value = story.points;
+            this.form.projectId.value = story.projectId || state.selectedProjectId || 1;
             this.form.status.value = story.status;
             this.syncStatusSelect();
             for (const c of story.acceptanceCriteria || []) this.addCriterion(c);
             if (!(story.acceptanceCriteria || []).length) this.addCriterion();
         } else {
             headerEl.textContent = "Uus story";
+            this.form.projectId.value = state.selectedProjectId || (state.projects[0] && state.projects[0].id) || 1;
             this.addCriterion();
             this.syncStatusSelect();
         }
@@ -254,6 +279,7 @@ const modal = {
             title: String(fd.get("title") || "").trim(),
             description: String(fd.get("description") || "").trim(),
             points: Number(fd.get("points")),
+            projectId: Number(fd.get("projectId")) || state.selectedProjectId || 1,
             status: String(fd.get("status") || "todo"),
             acceptanceCriteria: criteria,
         };
@@ -282,6 +308,12 @@ const modal = {
         const isOpen = !this.statusMenu.hidden;
         this.statusMenu.hidden = isOpen;
         this.statusTrigger.setAttribute("aria-expanded", String(!isOpen));
+    },
+    populateProjectOptions() {
+        if (!this.projectSelect) return;
+        this.projectSelect.innerHTML = state.projects
+            .map((project) => `<option value="${project.id}">${escapeHtml(project.name)}</option>`)
+            .join("");
     },
 };
 
@@ -361,6 +393,27 @@ async function deleteMockup(storyId) {
     }
 }
 
+async function saveProject(id, payload) {
+    const res = await fetch(id ? `${PROJECTS_API}/${id}` : PROJECTS_API, {
+        method: id ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(formatValidationError(data.detail) || `Projekti salvestamine ebaõnnestus (HTTP ${res.status})`);
+    }
+    return res.json();
+}
+
+async function deleteProject(id) {
+    const res = await fetch(`${PROJECTS_API}/${id}`, { method: "DELETE" });
+    if (!res.ok && res.status !== 204) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(formatValidationError(data.detail) || `Projekti kustutamine ebaõnnestus (HTTP ${res.status})`);
+    }
+}
+
 async function patchStatus(id, status) {
     const res = await fetch(`${API}/${id}/status`, {
         method: "PATCH",
@@ -375,7 +428,7 @@ async function reorderBacklog(orderIds) {
     const res = await fetch(`${API}/reorder`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ order: orderIds }),
+        body: JSON.stringify({ order: orderIds, projectId: state.selectedProjectId || 1 }),
     });
     if (!res.ok) throw new Error(`Järjekorra salvestamine ebaõnnestus (HTTP ${res.status})`);
     return res.json();
@@ -392,6 +445,176 @@ function formatValidationError(detail) {
     return JSON.stringify(detail);
 }
 
+function renderProjectSwitcher() {
+    const triggerValue = document.getElementById("project-trigger-value");
+    const triggerDot = document.getElementById("project-trigger-dot");
+    const optionsRoot = document.getElementById("project-options");
+    const project = currentProject();
+    if (triggerValue) triggerValue.textContent = project ? project.name : "Projekt";
+    if (triggerDot) triggerDot.style.background = projectColor(project);
+    if (!optionsRoot) return;
+    optionsRoot.innerHTML = state.projects.map((p) => `
+        <button type="button" class="custom-select-option project-option" role="option" data-id="${p.id}" aria-selected="${p.id === state.selectedProjectId}">
+            <span class="project-dot" style="background:${escapeHtml(projectColor(p))}" aria-hidden="true"></span>
+            <span>${escapeHtml(p.name)}</span>
+            ${p.status === "archived" ? `<span class="project-status-pill">Arhiveeritud</span>` : ""}
+        </button>
+    `).join("");
+    optionsRoot.querySelectorAll(".project-option").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+            await selectProject(Number(btn.dataset.id));
+            closeProjectSwitcher();
+        });
+    });
+}
+
+function closeProjectSwitcher() {
+    const trigger = document.getElementById("project-trigger");
+    const menu = document.getElementById("project-menu");
+    if (!trigger || !menu) return;
+    menu.hidden = true;
+    trigger.setAttribute("aria-expanded", "false");
+}
+
+async function selectProject(id) {
+    if (!state.projects.some((project) => project.id === id)) return;
+    state.selectedProjectId = id;
+    localStorage.setItem(PROJECT_KEY, String(id));
+    renderProjectSwitcher();
+    if (modal.projectSelect) modal.populateProjectOptions();
+    await reload();
+}
+
+async function loadProjects() {
+    state.projects = await fetchProjects();
+    const savedId = Number(localStorage.getItem(PROJECT_KEY));
+    const fallback = state.projects.find((project) => project.status === "active") || state.projects[0];
+    const selected = state.projects.find((project) => project.id === savedId) || fallback;
+    state.selectedProjectId = selected ? selected.id : null;
+    if (state.selectedProjectId) localStorage.setItem(PROJECT_KEY, String(state.selectedProjectId));
+    renderProjectSwitcher();
+}
+
+const projectsModal = {
+    root: null,
+    form: null,
+    list: null,
+    error: null,
+    statusSelect: null,
+    statusMenu: null,
+    statusTrigger: null,
+    editingId: null,
+    open() {
+        this.render();
+        this.root.hidden = false;
+    },
+    close() {
+        this.root.hidden = true;
+        this.resetForm();
+    },
+    resetForm() {
+        this.editingId = null;
+        this.form.reset();
+        this.form.color.value = "#2563eb";
+        this.form.status.value = "active";
+        this.syncStatusSelect();
+        document.getElementById("project-form-title").textContent = "Uus projekt";
+        this.hideError();
+    },
+    hideError() {
+        this.error.hidden = true;
+        this.error.textContent = "";
+    },
+    showError(message) {
+        this.error.textContent = message;
+        this.error.hidden = false;
+    },
+    collect() {
+        const fd = new FormData(this.form);
+        return {
+            name: String(fd.get("name") || "").trim(),
+            description: String(fd.get("description") || "").trim(),
+            color: String(fd.get("color") || "#2563eb"),
+            status: String(fd.get("status") || "active"),
+            owner: String(fd.get("owner") || "").trim(),
+            client: String(fd.get("client") || "").trim(),
+            deadline: String(fd.get("deadline") || ""),
+        };
+    },
+    edit(project) {
+        this.editingId = project.id;
+        this.form.name.value = project.name;
+        this.form.description.value = project.description || "";
+        this.form.color.value = projectColor(project);
+        this.form.status.value = project.status || "active";
+        this.syncStatusSelect();
+        this.form.owner.value = project.owner || "";
+        this.form.client.value = project.client || "";
+        this.form.deadline.value = project.deadline || "";
+        document.getElementById("project-form-title").textContent = `Muuda projekti #${project.id}`;
+        this.hideError();
+    },
+    render() {
+        if (!this.list) return;
+        this.list.innerHTML = state.projects.map((project) => `
+            <article class="project-list-item" data-project-id="${project.id}">
+                <div class="project-list-title">
+                    <span class="project-dot" style="background:${escapeHtml(projectColor(project))}" aria-hidden="true"></span>
+                    <div>
+                        <strong>${escapeHtml(project.name)}</strong>
+                        <span>${escapeHtml(project.client || project.owner || project.status)}</span>
+                    </div>
+                </div>
+                <div class="project-list-actions">
+                    <button type="button" class="btn" data-edit-project>Muuda</button>
+                    <button type="button" class="btn btn-danger" data-delete-project>Kustuta</button>
+                </div>
+            </article>
+        `).join("");
+        this.list.querySelectorAll("[data-edit-project]").forEach((btn) => {
+            btn.addEventListener("click", () => {
+                const id = Number(btn.closest(".project-list-item").dataset.projectId);
+                const project = state.projects.find((p) => p.id === id);
+                if (project) this.edit(project);
+            });
+        });
+        this.list.querySelectorAll("[data-delete-project]").forEach((btn) => {
+            btn.addEventListener("click", async () => {
+                const id = Number(btn.closest(".project-list-item").dataset.projectId);
+                const project = state.projects.find((p) => p.id === id);
+                if (!project || !confirm(`Kustuta projekt "${project.name}"? Projekt peab olema tühi.`)) return;
+                try {
+                    await deleteProject(id);
+                    await loadProjects();
+                    await reload();
+                    this.render();
+                } catch (err) {
+                    this.showError(err.message);
+                }
+            });
+        });
+    },
+    syncStatusSelect() {
+        if (!this.statusSelect || !this.statusMenu) return;
+        const selected = this.statusSelect.selectedOptions[0];
+        document.getElementById("project-status-value").textContent = selected ? selected.textContent : "Aktiivne";
+        this.statusMenu.querySelectorAll(".custom-select-option").forEach((option) => {
+            option.setAttribute("aria-selected", String(option.dataset.value === this.statusSelect.value));
+        });
+    },
+    closeStatusSelect() {
+        if (!this.statusMenu || !this.statusTrigger) return;
+        this.statusMenu.hidden = true;
+        this.statusTrigger.setAttribute("aria-expanded", "false");
+    },
+    toggleStatusSelect() {
+        if (!this.statusMenu || !this.statusTrigger) return;
+        const isOpen = !this.statusMenu.hidden;
+        this.statusMenu.hidden = isOpen;
+        this.statusTrigger.setAttribute("aria-expanded", String(!isOpen));
+    },
+};
+
 function initModal() {
     modal.root = document.getElementById("modal-root");
     modal.form = document.getElementById("story-form");
@@ -400,6 +623,7 @@ function initModal() {
     modal.statusSelect = document.getElementById("story-status");
     modal.statusTrigger = document.getElementById("status-trigger");
     modal.statusMenu = document.querySelector("[data-status-select] .custom-select-menu");
+    modal.projectSelect = document.getElementById("story-project");
 
     document.getElementById("add-story").addEventListener("click", () => modal.open());
     document.getElementById("add-criterion").addEventListener("click", () => modal.addCriterion());
@@ -459,7 +683,7 @@ const detail = {
     currentId: null,
     open(story) {
         this.currentId = story.id;
-        document.getElementById("detail-title").textContent = `#${story.id}: ${story.title}`;
+        document.getElementById("detail-title").textContent = `#${story.number}: ${story.title}`;
         const criteriaHtml = (story.acceptanceCriteria || [])
             .map((c) => `<li>${escapeHtml(c)}</li>`).join("");
         const commentsHtml = (story.comments || [])
@@ -845,8 +1069,85 @@ function initFilters() {
     syncPointsFilter();
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+function initProjects() {
+    const trigger = document.getElementById("project-trigger");
+    const menu = document.getElementById("project-menu");
+    trigger.addEventListener("click", () => {
+        const isOpen = !menu.hidden;
+        menu.hidden = isOpen;
+        trigger.setAttribute("aria-expanded", String(!isOpen));
+    });
+    document.getElementById("manage-projects").addEventListener("click", () => {
+        closeProjectSwitcher();
+        projectsModal.open();
+    });
+    document.addEventListener("click", (e) => {
+        if (!e.target.closest("[data-project-switcher]")) closeProjectSwitcher();
+    });
+    document.addEventListener("keydown", (e) => {
+        if (e.key !== "Escape" || menu.hidden) return;
+        closeProjectSwitcher();
+        trigger.focus();
+    });
+}
+
+function initProjectsModal() {
+    projectsModal.root = document.getElementById("projects-root");
+    projectsModal.form = document.getElementById("project-form");
+    projectsModal.list = document.getElementById("projects-list");
+    projectsModal.error = document.getElementById("project-error");
+    projectsModal.statusSelect = document.getElementById("project-status");
+    projectsModal.statusTrigger = document.getElementById("project-status-trigger");
+    projectsModal.statusMenu = document.querySelector("[data-project-status-select] .custom-select-menu");
+    projectsModal.root.querySelectorAll("[data-close]").forEach((el) => {
+        el.addEventListener("click", () => projectsModal.close());
+    });
+    projectsModal.statusTrigger.addEventListener("click", () => projectsModal.toggleStatusSelect());
+    projectsModal.statusMenu.querySelectorAll(".custom-select-option").forEach((option) => {
+        option.addEventListener("click", () => {
+            projectsModal.statusSelect.value = option.dataset.value;
+            projectsModal.syncStatusSelect();
+            projectsModal.closeStatusSelect();
+            projectsModal.statusTrigger.focus();
+        });
+    });
+    document.addEventListener("click", (e) => {
+        if (!e.target.closest("[data-project-status-select]")) projectsModal.closeStatusSelect();
+    });
+    document.getElementById("project-form-reset").addEventListener("click", () => projectsModal.resetForm());
+    projectsModal.form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const payload = projectsModal.collect();
+        if (!payload.name) return projectsModal.showError("Projekti nimi on kohustuslik.");
+        try {
+            const saved = await saveProject(projectsModal.editingId, payload);
+            await loadProjects();
+            projectsModal.render();
+            projectsModal.resetForm();
+            if (!state.selectedProjectId) await selectProject(saved.id);
+        } catch (err) {
+            projectsModal.showError(err.message);
+        }
+    });
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && projectsModal.statusMenu && !projectsModal.statusMenu.hidden) {
+            projectsModal.closeStatusSelect();
+            projectsModal.statusTrigger.focus();
+            return;
+        }
+        if (e.key === "Escape" && !projectsModal.root.hidden) projectsModal.close();
+    });
+}
+
+document.addEventListener("DOMContentLoaded", async () => {
     initTheme();
+    initProjects();
+    initProjectsModal();
+    try {
+        await loadProjects();
+    } catch (err) {
+        showError(err.message);
+    }
     initModal();
     initDetail();
     initMockupViewer();

@@ -25,6 +25,7 @@ env/
 
 # Lokaalsed andmed (genereeritakse käivitusel)
 data/stories.json
+data/projects.json
 data/mockups/
 
 # Uvicorn taustaprotsessi failid

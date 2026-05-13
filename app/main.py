@@ -4,9 +4,9 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from . import storage
-from .routes import router as stories_router
+from .routes import projects_router, router as stories_router
 
-app = FastAPI(title="Agiilne Tracker", version="0.1.0")
+app = FastAPI(title="Agile Tracker", version="0.1.0")
 
 PUBLIC_DIR = Path(__file__).resolve().parent.parent / "public"
 
@@ -17,6 +17,7 @@ def health() -> dict[str, str]:
 
 
 app.include_router(stories_router)
+app.include_router(projects_router)
 
 
 storage.ensure_mockups_dir()

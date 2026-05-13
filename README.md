@@ -1,4 +1,4 @@
-# Urmas — Agiilne Tracker
+# Urmas — Agile Tracker
 
 Veebirakendus user story'de haldamiseks Kanban-laual (Todo / Doing / Done). Tehtud kooliülesande "Agile Tracker" raames.
 
@@ -105,7 +105,10 @@ pytest -v        # API testid
 ### Miinimumnõuded ✅
 
 - Story'de kuvamine Kanban-laual (Todo / Backlog, Doing, Done)
+- Mitme projekti haldus: projektide lisamine, muutmine, kustutamine ja vahetamine
 - Story lisamine, muutmine, kustutamine (CRUD)
+- Story kuulub täpselt ühte projekti ja seda saab muutmisel teise projekti tõsta
+- Projekti-põhine story järjenumber (`#1`, `#2`, …) — algab igas projektis 1-st ja on stabiilne
 - Story staatuse muutmine (PATCH + drag-and-drop)
 - Backlogi järjestamine hiirega lohistades; järjekord säilib pärast lehe uuendamist
 - Punktide määramine (täisarv, ≥ 0, vigane sisend → arusaadav veateade)
@@ -124,8 +127,8 @@ pytest -v        # API testid
 - Drag-and-drop töötab **kõikide** veergude vahel (mitte ainult backlogis)
 - Story detailvaade modalis koos kõikide väljadega ja loomise/muutmise ajaga
 - Kommentaaride kustutamine
-- HTTP staatusekoodid: 200, 201, 204, 404, 422
-- 21 pytest API testi
+- HTTP staatusekoodid: 200, 201, 204, 404, 422, 409
+- 39 pytest API testi
 
 ---
 
@@ -159,7 +162,13 @@ Kõik endpointid on dokumenteeritud Swaggeris: `http://localhost:8000/docs`.
 | Meetod | URL | Kirjeldus | Status |
 |--------|-----|-----------|--------|
 | GET    | `/api/health` | Health check | 200 |
+| GET    | `/api/projects` | Kõik projektid | 200 |
+| GET    | `/api/projects/{id}` | Üks projekt | 200/404 |
+| POST   | `/api/projects` | Loo uus projekt | 201/422 |
+| PUT    | `/api/projects/{id}` | Uuenda projekt | 200/404/422 |
+| DELETE | `/api/projects/{id}` | Kustuta tühi projekt | 204/404/409 |
 | GET    | `/api/stories` | Kõik story'd (sorteeritud) | 200 |
+| GET    | `/api/stories?projectId=1` | Valitud projekti story'd | 200/404 |
 | GET    | `/api/stories/{id}` | Üks story | 200/404 |
 | POST   | `/api/stories` | Loo uus story | 201/422 |
 | PUT    | `/api/stories/{id}` | Uuenda story | 200/404/422 |
@@ -176,10 +185,12 @@ Kõik endpointid on dokumenteeritud Swaggeris: `http://localhost:8000/docs`.
 ```json
 {
   "id": 1,
+  "number": 1,
   "title": "Lisa story loomine",
   "description": "Kasutaja saab luua uue story.",
   "status": "todo",
   "points": 5,
+  "projectId": 1,
   "priority": 1,
   "acceptanceCriteria": [
     "Kasutaja saab sisestada pealkirja.",
@@ -208,6 +219,8 @@ urmas-agiilne-tracker/
 │   └── routes.py                  # /api/stories endpointid
 ├── data/
 │   ├── stories.example.json       # näidisandmed (versioneeritud)
+│   ├── projects.example.json      # näidisprojektid (versioneeritud)
+│   ├── projects.json              # tegelikud projektid (gitignore'is; luuakse automaatselt)
 │   ├── stories.json               # tegelik andmestik (gitignore'is; kopeeritakse esimesel käivitusel example'ist)
 │   └── mockups/                   # üleslaetud mockupid (gitignore'is)
 ├── public/

@@ -17,10 +17,12 @@ MAX_MOCKUP_SIZE = 5 * 1024 * 1024
 def isolated_data(tmp_path, monkeypatch):
     """Suuna storage iga testi puhul ajutisele andmefailile."""
     data_file = tmp_path / "stories.json"
+    projects_file = tmp_path / "projects.json"
     mockups_dir = tmp_path / "mockups"
     seed = [
         {
             "id": 1,
+            "number": 1,
             "title": "Esimene story",
             "description": "Test",
             "status": "todo",
@@ -33,6 +35,7 @@ def isolated_data(tmp_path, monkeypatch):
         },
         {
             "id": 2,
+            "number": 2,
             "title": "Teine story",
             "description": "Test",
             "status": "doing",
@@ -46,6 +49,7 @@ def isolated_data(tmp_path, monkeypatch):
     ]
     data_file.write_text(json.dumps(seed), encoding="utf-8")
     monkeypatch.setattr(storage, "DATA_FILE", data_file)
+    monkeypatch.setattr(storage, "PROJECTS_FILE", projects_file)
     monkeypatch.setattr(storage, "MOCKUPS_DIR", mockups_dir)
     yield data_file
 
@@ -66,6 +70,82 @@ def test_list_stories(client):
     assert r.status_code == 200
     data = r.json()
     assert len(data) == 2
+    assert {s["projectId"] for s in data} == {1}
+
+
+def test_default_project_is_created(client):
+    r = client.get("/api/projects")
+    assert r.status_code == 200
+    projects = r.json()
+    assert len(projects) == 1
+    assert projects[0]["name"] == "Näidis"
+
+
+def test_create_project(client):
+    payload = {
+        "name": "Klient A",
+        "description": "Projekt kliendile A",
+        "color": "#10b981",
+        "status": "active",
+        "owner": "Urmas",
+        "client": "Klient",
+        "deadline": "2026-06-01",
+    }
+    r = client.post("/api/projects", json=payload)
+    assert r.status_code == 201
+    body = r.json()
+    assert body["id"] == 2
+    assert body["name"] == "Klient A"
+    assert body["owner"] == "Urmas"
+
+
+def test_update_project(client):
+    project = client.post("/api/projects", json={"name": "Algne"}).json()
+    r = client.put(f"/api/projects/{project['id']}", json={"name": "Muudetud", "status": "archived"})
+    assert r.status_code == 200
+    assert r.json()["name"] == "Muudetud"
+    assert r.json()["status"] == "archived"
+
+
+def test_delete_empty_project(client):
+    project = client.post("/api/projects", json={"name": "Tühi"}).json()
+    r = client.delete(f"/api/projects/{project['id']}")
+    assert r.status_code == 204
+
+
+def test_delete_project_with_stories_blocked(client):
+    r = client.delete("/api/projects/1")
+    assert r.status_code == 409
+
+
+def test_list_stories_by_project(client):
+    project = client.post("/api/projects", json={"name": "Teine"}).json()
+    client.post("/api/stories", json={"title": "Teises projektis", "points": 1, "projectId": project["id"], "acceptanceCriteria": ["K"]})
+    r = client.get(f"/api/stories?projectId={project['id']}")
+    assert r.status_code == 200
+    data = r.json()
+    assert len(data) == 1
+    assert data[0]["title"] == "Teises projektis"
+
+
+def test_story_number_is_per_project(client):
+    # Seed already has stories #1 and #2 in project 1
+    project = client.post("/api/projects", json={"name": "Teine"}).json()
+    s1 = client.post("/api/stories", json={"title": "P2-1", "points": 1, "projectId": project["id"], "acceptanceCriteria": ["K"]}).json()
+    s2 = client.post("/api/stories", json={"title": "P2-2", "points": 1, "projectId": project["id"], "acceptanceCriteria": ["K"]}).json()
+    s_p1 = client.post("/api/stories", json={"title": "P1-3", "points": 1, "projectId": 1, "acceptanceCriteria": ["K"]}).json()
+    assert s1["number"] == 1
+    assert s2["number"] == 2
+    assert s_p1["number"] == 3  # third story in project 1 (seed had 2)
+    # Global ids are still unique
+    assert len({s1["id"], s2["id"], s_p1["id"]}) == 3
+
+
+def test_move_story_to_project(client):
+    project = client.post("/api/projects", json={"name": "Teine"}).json()
+    r = client.put("/api/stories/1", json={"projectId": project["id"]})
+    assert r.status_code == 200
+    assert r.json()["projectId"] == project["id"]
 
 
 def test_get_one(client):
