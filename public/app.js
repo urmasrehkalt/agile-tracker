@@ -50,6 +50,9 @@ function renderBoard() {
         for (const story of byStatus[status]) {
             container.appendChild(renderCard(story));
         }
+        const sum = byStatus[status].reduce((acc, s) => acc + (s.points || 0), 0);
+        const sumEl = document.querySelector(`[data-sum-for="${status}"]`);
+        if (sumEl) sumEl.textContent = `${sum}p`;
     }
 }
 
