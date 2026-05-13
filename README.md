@@ -1,1 +1,196 @@
-# project-tracker
+# Urmas — Agiilne Tracker
+
+Veebirakendus user story'de haldamiseks Kanban-laual (Todo / Doing / Done). Tehtud kooliülesande "Agile Tracker" raames.
+
+## Ekraanipildid
+
+### Kanban-laud
+
+![Kanban-laud](docs/screenshot.png)
+
+### Story loomise modal
+
+![Uue story modal](docs/screenshot-new-story.png)
+
+### Story detailvaade ja kommentaarid
+
+![Story detailvaade](docs/screenshot-detail.png)
+
+---
+
+## 1. Mis tehnoloogiaid kasutasin?
+
+| Kiht | Tehnoloogia |
+|------|-------------|
+| Backend | Python 3.12 + [FastAPI](https://fastapi.tiangolo.com/) + Pydantic v2 |
+| Server | uvicorn |
+| Andmehoidla | JSON-fail (`data/stories.json`), atomic-write |
+| Frontend | Vanilla HTML + CSS + JavaScript (ei mingeid build-tööriistu) |
+| Drag-and-drop | [SortableJS](https://sortablejs.github.io/Sortable/) CDN-ist |
+| Testid | pytest + FastAPI TestClient + httpx |
+
+Arhitektuur on **monoliit**: FastAPI serveerib nii REST API endpoint'e (`/api/*`) kui ka staatilist frontendit (`/public`). Käivitub ühe käsuga ühel pordil.
+
+---
+
+## 2. Kuidas rakendus käivitada?
+
+**Eeldused:** Python 3.11 või uuem (testitud 3.12-ga), `git`.
+
+```bash
+# 1. Klooni repo
+git clone https://github.com/vikk-tak25/urmas-agiilne-tracker.git
+cd urmas-agiilne-tracker
+
+# 2. Loo virtuaalkeskkond ja installi sõltuvused
+python3 -m venv .venv
+source .venv/bin/activate           # Windowsil: .venv\Scripts\activate
+pip install -r requirements.txt
+
+# 3. Käivita server
+uvicorn app.main:app --reload --port 8000
+
+# 4. Ava brauseris
+#   - http://localhost:8000        Kanban-laud
+#   - http://localhost:8000/docs   Swagger UI (interaktiivne API)
+```
+
+Esimesel käivitusel kopeeritakse `data/stories.example.json` failist 3 näidisstory'd. Kui soovid tühja seisust alustada, kustuta `data/stories.json` enne käivitamist.
+
+### Testide käivitamine
+
+```bash
+pytest -v        # 21 API testi
+```
+
+### Ekraanipildi tegemine
+
+Käivita server, ava `http://localhost:8000`, salvesta ekraanipilt asukohta `docs/screenshot.png` ja commit see eraldi.
+
+---
+
+## 3. Millised funktsioonid valmis said?
+
+### Miinimumnõuded ✅
+
+- Story'de kuvamine Kanban-laual (Todo / Backlog, Doing, Done)
+- Story lisamine, muutmine, kustutamine (CRUD)
+- Story staatuse muutmine (PATCH + drag-and-drop)
+- Backlogi järjestamine hiirega lohistades; järjekord säilib pärast lehe uuendamist
+- Punktide määramine (täisarv, ≥ 0, vigane sisend → arusaadav veateade)
+- Vähemalt 1 vastuvõtutingimus story kohta (kohustuslik)
+- Kommentaaride lisamine koos ajatempliga
+- Andmete salvestamine JSON-faili
+- Täielik REST API (allpool)
+
+### Lisapunktid ✅
+
+- Otsing pealkirja järgi
+- Filtreerimine punktide järgi (≥1, ≥3, ≥5, ≥8)
+- Punktide summa iga veeru pealkirjas
+- Drag-and-drop töötab **kõikide** veergude vahel (mitte ainult backlogis)
+- Story detailvaade modalis koos kõikide väljadega ja loomise/muutmise ajaga
+- Kommentaaride kustutamine
+- HTTP staatusekoodid: 200, 201, 204, 404, 422
+- 21 pytest API testi
+
+---
+
+## 4. Millised funktsioonid jäid pooleli?
+
+Kooliülesande miinimum- ja lisanõuded on täidetud. Edasiarendamiseks võimalik:
+
+- Kasutajate autentimine (mitme inimese koos kasutamiseks)
+- Story'de prioriteedid ka väljaspool todo-veergu (lihtne lisada)
+- Tags/sildid story'de kategoriseerimiseks
+- Kommentaaride muutmine (praegu ainult lisamine ja kustutamine)
+- Real-time sünk WebSocketi kaudu
+- Tagasi-tegemise (undo) funktsioon
+
+---
+
+## 5. Millised olid kõige keerulisemad kohad?
+
+- **Reorder endpointi route'imine**: `PATCH /api/stories/reorder` ja `PATCH /api/stories/{id}/...` võivad konflikti minna, kui FastAPI router lubab `reorder` stringi `story_id` rolli. Lahendus: deklareerida `/reorder` route enne `/{story_id}/...` patterne. Eraldatud kahel segmendil ei oleks teoreetiliselt konflikti, kuid eksplitseerimine annab kindluse.
+- **SortableJS koos rerenderiga**: kogu Kanban-laud rerendreeritakse iga muudatuse järel, kuid Sortable instants on seotud konteineri elemendiga. Iga `renderBoard` kõne säilitab konteineri (asendab vaid `innerHTML`), nii et Sortable jätkab töötamist.
+- **Atomic JSON kirjutamine**: kasutusel `.tmp` + `os.replace` + `fsync`, et katkenud kirjutus ei rikuks andmefaili. Lukuga (`threading.Lock`) kaitstud paralleelsete päringute eest.
+- **Estonian täht repo nimes vs ülesande nimi**: ülesanne ütleb `eesnimi-agile-tracker`, kuid repo on `urmas-agiilne-tracker`. Sisuline nõue on täidetud.
+
+---
+
+## REST API endpoint'id
+
+Kõik endpointid on dokumenteeritud Swaggeris: `http://localhost:8000/docs`.
+
+| Meetod | URL | Kirjeldus | Status |
+|--------|-----|-----------|--------|
+| GET    | `/api/health` | Health check | 200 |
+| GET    | `/api/stories` | Kõik story'd (sorteeritud) | 200 |
+| GET    | `/api/stories/{id}` | Üks story | 200/404 |
+| POST   | `/api/stories` | Loo uus story | 201/422 |
+| PUT    | `/api/stories/{id}` | Uuenda story | 200/404/422 |
+| DELETE | `/api/stories/{id}` | Kustuta story | 204/404 |
+| PATCH  | `/api/stories/{id}/status` | Muuda staatust (`{"status":"doing"}`) | 200/404/422 |
+| PATCH  | `/api/stories/reorder` | Salvesta backlogi järjekord (`{"order":[3,1]}`) | 200/404 |
+| POST   | `/api/stories/{id}/comments` | Lisa kommentaar (`{"text":"..."}`) | 201/404/422 |
+| DELETE | `/api/stories/{id}/comments/{cid}` | Kustuta kommentaar | 204/404 |
+
+### Näidisandmestruktuur
+
+```json
+{
+  "id": 1,
+  "title": "Lisa story loomine",
+  "description": "Kasutaja saab luua uue story.",
+  "status": "todo",
+  "points": 5,
+  "priority": 1,
+  "acceptanceCriteria": [
+    "Kasutaja saab sisestada pealkirja.",
+    "Kasutaja saab sisestada punktid."
+  ],
+  "comments": [
+    { "id": 1, "text": "Seda tuleb testida.", "createdAt": "2026-05-12 14:32" }
+  ],
+  "createdAt": "2026-05-12 14:00",
+  "updatedAt": "2026-05-12 14:32"
+}
+```
+
+---
+
+## Projekti struktuur
+
+```
+urmas-agiilne-tracker/
+├── app/
+│   ├── main.py          # FastAPI app, staatiline mount, router
+│   ├── models.py        # Pydantic mudelid + validatsioonid
+│   ├── storage.py       # JSON-faili read/write (atomic)
+│   └── routes.py        # /api/stories endpointid
+├── data/
+│   ├── stories.example.json   # näidisandmed
+│   └── stories.json           # genereeritakse esimesel käivitusel
+├── public/
+│   ├── index.html       # Kanban-laud
+│   ├── style.css        # disain
+│   └── app.js           # frontend loogika + SortableJS
+├── tests/
+│   └── test_api.py      # 21 pytest testi
+├── docs/
+│   └── screenshot.png   # ekraanipilt
+├── requirements.txt
+└── README.md
+```
+
+---
+
+## Arendusprotsess
+
+Arendus käis vastavalt ülesande nõuetele GitHubi issue'de, feature branchide ja mikrocommitidega:
+
+- Iga funktsiooni kohta on **GitHubi issue** (`gh issue list --state all`)
+- Iga issue saab **eraldi feature branchi** (`<issue-id>-lyhi-nimi`)
+- Kõik branchid mergitakse `main`-i **squash-merge**'iga
+- Iga commit on **mikrocommit** ühe loogilise muudatusega
+- Iga commit pushitakse kohe GitHubi
