@@ -1,7 +1,7 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, status
 
 from . import storage
-from .models import Story
+from .models import Story, StoryCreate
 
 router = APIRouter(prefix="/api/stories", tags=["stories"])
 
@@ -25,3 +25,28 @@ def get_story(story_id: int) -> dict:
     if story is None:
         raise HTTPException(status_code=404, detail=f"Story {story_id} not found")
     return story
+
+
+@router.post("", response_model=Story, status_code=status.HTTP_201_CREATED)
+def create_story(payload: StoryCreate) -> dict:
+    stories = storage.load_all()
+    now = storage.now_str()
+    todo_max_priority = max(
+        (s.get("priority", 0) for s in stories if s["status"] == "todo"),
+        default=0,
+    )
+    new_story = {
+        "id": storage.next_id(stories),
+        "title": payload.title,
+        "description": payload.description,
+        "status": payload.status,
+        "points": payload.points,
+        "priority": todo_max_priority + 1 if payload.status == "todo" else 0,
+        "acceptanceCriteria": payload.acceptanceCriteria,
+        "comments": [],
+        "createdAt": now,
+        "updatedAt": now,
+    }
+    stories.append(new_story)
+    storage.save_all(stories)
+    return new_story
