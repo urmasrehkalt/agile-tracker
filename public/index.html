@@ -2,10 +2,50 @@
 <html lang="et">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Agiilne Tracker</title>
+    <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-    <h1>Agiilne Tracker</h1>
-    <p>Frontend tuleb peagi.</p>
+    <header class="topbar">
+        <h1>Agiilne Tracker</h1>
+        <div class="toolbar">
+            <input id="search" class="search" type="search" placeholder="Otsi pealkirja järgi…" disabled>
+            <select id="filter-points" class="filter" disabled>
+                <option value="">Kõik punktid</option>
+                <option value="1">≥ 1</option>
+                <option value="3">≥ 3</option>
+                <option value="5">≥ 5</option>
+                <option value="8">≥ 8</option>
+            </select>
+            <button id="add-story" class="btn btn-primary" disabled>+ Uus story</button>
+        </div>
+    </header>
+
+    <main class="board">
+        <section class="column" data-status="todo">
+            <header class="column-header">
+                <h2>Todo / Backlog</h2>
+                <span class="points-sum" data-sum-for="todo">0p</span>
+            </header>
+            <div class="cards" id="col-todo"></div>
+        </section>
+
+        <section class="column" data-status="doing">
+            <header class="column-header">
+                <h2>Doing</h2>
+                <span class="points-sum" data-sum-for="doing">0p</span>
+            </header>
+            <div class="cards" id="col-doing"></div>
+        </section>
+
+        <section class="column" data-status="done">
+            <header class="column-header">
+                <h2>Done</h2>
+                <span class="points-sum" data-sum-for="done">0p</span>
+            </header>
+            <div class="cards" id="col-done"></div>
+        </section>
+    </main>
 </body>
 </html>
