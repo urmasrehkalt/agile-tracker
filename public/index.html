@@ -18,14 +18,26 @@
         <div class="toolbar">
             <label class="visually-hidden" for="search">Otsi story pealkirja järgi</label>
             <input id="search" class="search" type="search" placeholder="Otsi pealkirja järgi…">
-            <label class="visually-hidden" for="filter-points">Filtreeri punktide järgi</label>
-            <select id="filter-points" class="filter">
+            <label class="visually-hidden" id="points-filter-label" for="filter-points">Filtreeri punktide järgi</label>
+            <select id="filter-points" class="native-select" tabindex="-1" aria-hidden="true">
                 <option value="">Kõik punktid</option>
                 <option value="1">≥ 1</option>
                 <option value="3">≥ 3</option>
                 <option value="5">≥ 5</option>
                 <option value="8">≥ 8</option>
             </select>
+            <div class="custom-select toolbar-select" data-points-filter>
+                <button class="custom-select-trigger" id="points-filter-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="points-filter-label points-filter-value">
+                    <span id="points-filter-value">Kõik punktid</span>
+                </button>
+                <div class="custom-select-menu" role="listbox" aria-labelledby="points-filter-label" hidden>
+                    <button type="button" class="custom-select-option" role="option" data-value="" aria-selected="true">Kõik punktid</button>
+                    <button type="button" class="custom-select-option" role="option" data-value="1" aria-selected="false">≥ 1</button>
+                    <button type="button" class="custom-select-option" role="option" data-value="3" aria-selected="false">≥ 3</button>
+                    <button type="button" class="custom-select-option" role="option" data-value="5" aria-selected="false">≥ 5</button>
+                    <button type="button" class="custom-select-option" role="option" data-value="8" aria-selected="false">≥ 8</button>
+                </div>
+            </div>
             <button id="theme-toggle" class="btn btn-ghost theme-toggle" type="button" aria-pressed="false">Tume</button>
             <button id="add-story" class="btn btn-primary">+ Uus story</button>
         </div>

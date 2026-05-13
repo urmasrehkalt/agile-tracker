@@ -117,11 +117,17 @@ function renderCard(story) {
     const criteriaCount = (story.acceptanceCriteria || []).length;
     const commentCount = (story.comments || []).length;
     const description = String(story.description || "").trim();
+    const mockup = story.mockup;
     card.innerHTML = `
         <div class="card-meta">
             <span class="points-badge">${story.points}p</span>
             <span class="card-id">#${story.id}</span>
         </div>
+        ${mockup ? `
+            <div class="card-mockup-preview" aria-hidden="true">
+                <img src="${escapeHtml(mockup.url)}" alt="">
+            </div>
+        ` : ""}
         <h3 class="card-title">${escapeHtml(story.title)}</h3>
         ${description ? `<p class="card-description">${escapeHtml(description)}</p>` : ""}
         <div class="card-metrics">
@@ -784,14 +790,59 @@ function initSortable() {
 function initFilters() {
     const searchEl = document.getElementById("search");
     const filterEl = document.getElementById("filter-points");
+    const pointsRoot = document.querySelector("[data-points-filter]");
+    const pointsTrigger = document.getElementById("points-filter-trigger");
+    const pointsValue = document.getElementById("points-filter-value");
+    const pointsMenu = pointsRoot.querySelector(".custom-select-menu");
+
+    function syncPointsFilter() {
+        const selected = filterEl.selectedOptions[0];
+        pointsValue.textContent = selected ? selected.textContent : "Kõik punktid";
+        pointsMenu.querySelectorAll(".custom-select-option").forEach((option) => {
+            option.setAttribute("aria-selected", String(option.dataset.value === filterEl.value));
+        });
+    }
+
+    function closePointsFilter() {
+        pointsMenu.hidden = true;
+        pointsTrigger.setAttribute("aria-expanded", "false");
+    }
+
+    function applyPointsFilter(value) {
+        filterEl.value = value;
+        state.filters.minPoints = Number(value) || 0;
+        syncPointsFilter();
+        renderBoard();
+    }
+
     searchEl.addEventListener("input", () => {
         state.filters.query = searchEl.value;
         renderBoard();
     });
     filterEl.addEventListener("change", () => {
-        state.filters.minPoints = Number(filterEl.value) || 0;
-        renderBoard();
+        applyPointsFilter(filterEl.value);
     });
+    pointsTrigger.addEventListener("click", () => {
+        const isOpen = !pointsMenu.hidden;
+        pointsMenu.hidden = isOpen;
+        pointsTrigger.setAttribute("aria-expanded", String(!isOpen));
+    });
+    pointsMenu.querySelectorAll(".custom-select-option").forEach((option) => {
+        option.addEventListener("click", () => {
+            applyPointsFilter(option.dataset.value);
+            closePointsFilter();
+            pointsTrigger.focus();
+        });
+    });
+    document.addEventListener("click", (e) => {
+        if (!e.target.closest("[data-points-filter]")) closePointsFilter();
+    });
+    document.addEventListener("keydown", (e) => {
+        if (e.key !== "Escape" || pointsMenu.hidden) return;
+        closePointsFilter();
+        pointsTrigger.focus();
+    });
+    syncPointsFilter();
 }
 
 document.addEventListener("DOMContentLoaded", () => {
