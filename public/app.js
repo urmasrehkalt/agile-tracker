@@ -171,6 +171,26 @@ async function deleteStory(id) {
     }
 }
 
+async function addComment(storyId, text) {
+    const res = await fetch(`${API}/${storyId}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+    });
+    if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(formatValidationError(data.detail) || `Kommentaari salvestamine ebaõnnestus (HTTP ${res.status})`);
+    }
+    return res.json();
+}
+
+async function deleteComment(storyId, commentId) {
+    const res = await fetch(`${API}/${storyId}/comments/${commentId}`, { method: "DELETE" });
+    if (!res.ok && res.status !== 204) {
+        throw new Error(`Kommentaari kustutamine ebaõnnestus (HTTP ${res.status})`);
+    }
+}
+
 function formatValidationError(detail) {
     if (!detail) return "";
     if (typeof detail === "string") return detail;
@@ -231,6 +251,14 @@ const detail = {
         document.getElementById("detail-title").textContent = `#${story.id}: ${story.title}`;
         const criteriaHtml = (story.acceptanceCriteria || [])
             .map((c) => `<li>${escapeHtml(c)}</li>`).join("");
+        const commentsHtml = (story.comments || [])
+            .map((c) => `
+                <li class="comment" data-comment-id="${c.id}">
+                    <button class="comment-delete" aria-label="Kustuta kommentaar">✕</button>
+                    <p class="comment-text">${escapeHtml(c.text)}</p>
+                    <span class="comment-meta">${escapeHtml(c.createdAt || "")}</span>
+                </li>
+            `).join("");
         this.body.innerHTML = `
             <div class="detail-meta">
                 <span class="status-badge status-${story.status}">${story.status}</span>
@@ -246,8 +274,60 @@ const detail = {
                 <h3>Vastuvõtutingimused</h3>
                 <ul>${criteriaHtml || "<li>—</li>"}</ul>
             </div>
+            <div class="detail-section">
+                <h3>Kommentaarid</h3>
+                <ul class="comments-list">${commentsHtml || "<li class=\"comment-meta\">Veel pole kommentaare.</li>"}</ul>
+                <form class="comment-form" id="comment-form">
+                    <textarea name="text" placeholder="Lisa kommentaar…" required></textarea>
+                    <button type="submit" class="btn btn-primary">Lisa</button>
+                </form>
+                <p class="form-error" id="comment-error" hidden></p>
+            </div>
         `;
+        this.bindCommentEvents();
         this.root.hidden = false;
+    },
+    bindCommentEvents() {
+        const form = this.body.querySelector("#comment-form");
+        const errorEl = this.body.querySelector("#comment-error");
+        if (form) {
+            form.addEventListener("submit", async (e) => {
+                e.preventDefault();
+                const text = String(form.text.value || "").trim();
+                if (!text) {
+                    errorEl.textContent = "Kommentaar ei tohi olla tühi.";
+                    errorEl.hidden = false;
+                    return;
+                }
+                try {
+                    await addComment(this.currentId, text);
+                    await reload();
+                    const updated = findStory(this.currentId);
+                    if (updated) this.open(updated);
+                } catch (err) {
+                    errorEl.textContent = err.message;
+                    errorEl.hidden = false;
+                }
+            });
+        }
+        this.body.querySelectorAll(".comment-delete").forEach((btn) => {
+            btn.addEventListener("click", async () => {
+                const li = btn.closest(".comment");
+                const cid = Number(li.dataset.commentId);
+                if (!confirm("Kustuta kommentaar?")) return;
+                try {
+                    await deleteComment(this.currentId, cid);
+                    await reload();
+                    const updated = findStory(this.currentId);
+                    if (updated) this.open(updated);
+                } catch (err) {
+                    if (errorEl) {
+                        errorEl.textContent = err.message;
+                        errorEl.hidden = false;
+                    }
+                }
+            });
+        });
     },
     close() {
         this.currentId = null;
