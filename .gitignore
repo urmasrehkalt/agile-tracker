@@ -34,3 +34,6 @@ data/mockups/
 
 # Ülesande dokument (ei sünki GitHubi)
 ülesanne-agiilne-tracker.md
+
+# Graphify teadmusgraafi väljund (lokaalne, genereeritav)
+graphify-out/
