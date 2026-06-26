@@ -93,6 +93,34 @@ uvicorn app.main:app --reload --port 8000
 
 Esimesel käivitusel kopeeritakse `data/stories.example.json` failist 3 näidisstory'd. Kui soovid tühja seisust alustada, kustuta `data/stories.json` enne käivitamist.
 
+### Docker (püsiv lokaalne deployment)
+
+Et laud oleks alati kättesaadav (käib ka taaskäivituste järel automaatselt
+uuesti), saab rakenduse käivitada konteinerina:
+
+```bash
+# Ehita ja käivita taustal
+docker compose up -d --build
+
+# Logid / staatus / peatamine
+docker compose logs -f
+docker compose ps
+docker compose down
+```
+
+Pärast seda on laud aadressil http://localhost:8000.
+
+Olulised seaded (`docker-compose.yml`):
+
+- **Andmete püsivus** — kaust `./data` on bind-mount'itud konteinerisse, seega
+  story'd, projektid ja üleslaaditud mockup'id säilivad ka uuesti ehitamisel.
+  Reaalsed andmed jäävad hostis nähtavaks (lihtne varundada).
+- **Ainult localhost** — port on seotud `127.0.0.1`-ga, sest rakendusel pole
+  autentimist; seda ei tohi avada kohtvõrku.
+- **Automaatne taaskäivitus** — `restart: unless-stopped` käivitab konteineri
+  pärast arvuti taaskäivitust või Docker Desktopi avamist uuesti.
+- **Healthcheck** — Docker kontrollib `/api/health` endpoint'i.
+
 ### Testide käivitamine
 
 ```bash

@@ -1,0 +1,22 @@
+services:
+  app:
+    build: .
+    image: agile-tracker:latest
+    container_name: agile-tracker
+    # Localhost only — the app has no authentication, so it must not be
+    # exposed on the LAN. Change to "8000:8000" only behind your own auth.
+    ports:
+      - "127.0.0.1:8000:8000"
+    # Persist JSON state and uploaded mockups on the host so data survives
+    # rebuilds and container recreation.
+    volumes:
+      - ./data:/app/data
+    # Keep it running across reboots / Docker Desktop restarts, but stay
+    # stopped if you stop it on purpose.
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

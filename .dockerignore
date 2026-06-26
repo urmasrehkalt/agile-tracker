@@ -1,0 +1,35 @@
+# Local runtime data — provided via bind mount, never baked into the image.
+data
+
+# Virtualenv and Python caches
+.venv
+venv
+env
+__pycache__
+*.py[cod]
+.pytest_cache
+.mypy_cache
+.ruff_cache
+
+# Version control and tooling
+.git
+.gitignore
+.github
+
+# Uvicorn background-process files (local start.sh only)
+.uvicorn.pid
+.uvicorn.log
+
+# Knowledge-graph output and docs not needed at runtime
+graphify-out
+docs
+
+# Environment and IDE
+.env
+.env.local
+.vscode
+.idea
+.DS_Store
+
+# Task document
+ülesanne-agiilne-tracker.md
