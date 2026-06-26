@@ -53,18 +53,18 @@ def _sort_stories(stories: list[dict]) -> list[dict]:
 def _validate_mockup(file: UploadFile, content: bytes) -> str:
     content_type = file.content_type or ""
     if content_type not in MOCKUP_EXTENSIONS:
-        raise HTTPException(status_code=422, detail="Lubatud mockupi tüübid on PNG, JPEG ja WebP")
+        raise HTTPException(status_code=422, detail="Allowed mockup types are PNG, JPEG and WebP")
     if not content:
-        raise HTTPException(status_code=422, detail="Mockupi fail ei tohi olla tühi")
+        raise HTTPException(status_code=422, detail="Mockup file must not be empty")
     if len(content) > MAX_MOCKUP_SIZE:
-        raise HTTPException(status_code=422, detail="Mockupi maksimaalne suurus on 5 MB")
+        raise HTTPException(status_code=422, detail="Maximum mockup size is 5 MB")
 
     if content_type == "image/png" and not content.startswith(b"\x89PNG\r\n\x1a\n"):
-        raise HTTPException(status_code=422, detail="Fail ei vasta PNG vormingule")
+        raise HTTPException(status_code=422, detail="File is not a valid PNG")
     if content_type == "image/jpeg" and not content.startswith(b"\xff\xd8\xff"):
-        raise HTTPException(status_code=422, detail="Fail ei vasta JPEG vormingule")
+        raise HTTPException(status_code=422, detail="File is not a valid JPEG")
     if content_type == "image/webp" and not (content.startswith(b"RIFF") and content[8:12] == b"WEBP"):
-        raise HTTPException(status_code=422, detail="Fail ei vasta WebP vormingule")
+        raise HTTPException(status_code=422, detail="File is not a valid WebP")
 
     return MOCKUP_EXTENSIONS[content_type]
 

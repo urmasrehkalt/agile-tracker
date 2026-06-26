@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="et">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +7,7 @@
     <title>Agile Tracker</title>
     <link rel="stylesheet" href="/style.css">
     <script defer src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+    <script defer src="/i18n.js"></script>
     <script defer src="/app.js"></script>
 </head>
 <body>
@@ -16,21 +17,21 @@
         </div>
         <div class="project-switcher" data-project-switcher>
             <button class="custom-select-trigger project-trigger" id="project-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="project-trigger-label project-trigger-value">
-                <span id="project-trigger-label" class="visually-hidden">Valitud projekt</span>
+                <span id="project-trigger-label" class="visually-hidden" data-i18n="project.switcherLabel">Selected project</span>
                 <span class="project-dot" id="project-trigger-dot" aria-hidden="true"></span>
-                <span id="project-trigger-value">Projekt</span>
+                <span id="project-trigger-value">Project</span>
             </button>
             <div class="custom-select-menu project-menu" id="project-menu" role="listbox" aria-labelledby="project-trigger-label" hidden>
                 <div id="project-options"></div>
-                <button type="button" class="custom-select-option manage-projects-option" id="manage-projects">Halda projekte</button>
+                <button type="button" class="custom-select-option manage-projects-option" id="manage-projects" data-i18n="project.manage">Manage projects</button>
             </div>
         </div>
         <div class="toolbar">
-            <label class="visually-hidden" for="search">Otsi story pealkirja järgi</label>
-            <input id="search" class="search" type="search" placeholder="Otsi pealkirja järgi…">
-            <label class="visually-hidden" id="points-filter-label" for="filter-points">Filtreeri punktide järgi</label>
+            <label class="visually-hidden" for="search" data-i18n="toolbar.searchLabel">Search stories by title</label>
+            <input id="search" class="search" type="search" placeholder="Search by title…" data-i18n-placeholder="toolbar.searchPlaceholder">
+            <label class="visually-hidden" id="points-filter-label" for="filter-points" data-i18n="toolbar.pointsFilterLabel">Filter by points</label>
             <select id="filter-points" class="native-select" tabindex="-1" aria-hidden="true">
-                <option value="">Kõik punktid</option>
+                <option value="" data-i18n="toolbar.allPoints">All points</option>
                 <option value="1">≥ 1</option>
                 <option value="3">≥ 3</option>
                 <option value="5">≥ 5</option>
@@ -38,18 +39,19 @@
             </select>
             <div class="custom-select toolbar-select" data-points-filter>
                 <button class="custom-select-trigger" id="points-filter-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="points-filter-label points-filter-value">
-                    <span id="points-filter-value">Kõik punktid</span>
+                    <span id="points-filter-value">All points</span>
                 </button>
                 <div class="custom-select-menu" role="listbox" aria-labelledby="points-filter-label" hidden>
-                    <button type="button" class="custom-select-option" role="option" data-value="" aria-selected="true">Kõik punktid</button>
+                    <button type="button" class="custom-select-option" role="option" data-value="" aria-selected="true" data-i18n="toolbar.allPoints">All points</button>
                     <button type="button" class="custom-select-option" role="option" data-value="1" aria-selected="false">≥ 1</button>
                     <button type="button" class="custom-select-option" role="option" data-value="3" aria-selected="false">≥ 3</button>
                     <button type="button" class="custom-select-option" role="option" data-value="5" aria-selected="false">≥ 5</button>
                     <button type="button" class="custom-select-option" role="option" data-value="8" aria-selected="false">≥ 8</button>
                 </div>
             </div>
-            <button id="theme-toggle" class="btn btn-ghost theme-toggle" type="button" aria-pressed="false">Tume</button>
-            <button id="add-story" class="btn btn-primary">+ Uus story</button>
+            <button id="lang-toggle" class="btn btn-ghost lang-toggle" type="button" aria-label="Switch to Estonian">ET</button>
+            <button id="theme-toggle" class="btn btn-ghost theme-toggle" type="button" aria-pressed="false">Dark</button>
+            <button id="add-story" class="btn btn-primary" data-i18n="story.addButton">+ New story</button>
         </div>
     </header>
 
@@ -60,10 +62,10 @@
             <header class="column-header">
                 <div>
                     <h2>Todo / Backlog</h2>
-                    <p>Planeeritud töö</p>
+                    <p data-i18n="column.todoSubtitle">Planned work</p>
                 </div>
                 <div class="column-stats">
-                    <span class="story-count" data-count-for="todo">0 story</span>
+                    <span class="story-count" data-count-for="todo">0 stories</span>
                     <span class="points-sum" data-sum-for="todo">0p</span>
                 </div>
             </header>
@@ -74,10 +76,10 @@
             <header class="column-header">
                 <div>
                     <h2>Doing</h2>
-                    <p>Töös olevad story'd</p>
+                    <p data-i18n="column.doingSubtitle">Stories in progress</p>
                 </div>
                 <div class="column-stats">
-                    <span class="story-count" data-count-for="doing">0 story</span>
+                    <span class="story-count" data-count-for="doing">0 stories</span>
                     <span class="points-sum" data-sum-for="doing">0p</span>
                 </div>
             </header>
@@ -88,10 +90,10 @@
             <header class="column-header">
                 <div>
                     <h2>Done</h2>
-                    <p>Valmis ja kontrollitud</p>
+                    <p data-i18n="column.doneSubtitle">Done &amp; verified</p>
                 </div>
                 <div class="column-stats">
-                    <span class="story-count" data-count-for="done">0 story</span>
+                    <span class="story-count" data-count-for="done">0 stories</span>
                     <span class="points-sum" data-sum-for="done">0p</span>
                 </div>
             </header>
@@ -104,12 +106,12 @@
         <div class="modal" role="dialog" aria-modal="true" aria-labelledby="detail-title">
             <header class="modal-header">
                 <h2 id="detail-title">Story</h2>
-                <button class="modal-close btn" data-close aria-label="Sulge">✕</button>
+                <button class="modal-close btn" data-close aria-label="Close" data-i18n-aria-label="common.close">✕</button>
             </header>
             <div class="modal-body" id="detail-body"></div>
             <footer class="modal-footer">
-                <button class="btn btn-danger" id="detail-delete">Kustuta</button>
-                <button class="btn btn-primary" id="detail-edit">Muuda</button>
+                <button class="btn btn-danger" id="detail-delete" data-i18n="common.delete">Delete</button>
+                <button class="btn btn-primary" id="detail-edit" data-i18n="common.edit">Edit</button>
             </footer>
         </div>
     </div>
@@ -118,59 +120,59 @@
         <div class="modal-backdrop" data-close></div>
         <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
             <header class="modal-header">
-                <h2 id="modal-title">Uus story</h2>
-                <button class="modal-close btn" data-close aria-label="Sulge">✕</button>
+                <h2 id="modal-title" data-i18n="story.modalNewTitle">New story</h2>
+                <button class="modal-close btn" data-close aria-label="Close" data-i18n-aria-label="common.close">✕</button>
             </header>
             <form id="story-form">
                 <div class="modal-body">
                     <label class="field">
-                        <span>Pealkiri *</span>
+                        <span data-i18n="story.fieldTitle">Title *</span>
                         <input name="title" required maxlength="200">
                     </label>
                     <label class="field">
-                        <span>Kirjeldus</span>
+                        <span data-i18n="common.description">Description</span>
                         <textarea name="description" rows="3"></textarea>
                     </label>
                     <div class="row">
                         <label class="field">
-                            <span>Projekt</span>
+                            <span data-i18n="common.project">Project</span>
                             <select name="projectId" id="story-project"></select>
                         </label>
                         <label class="field">
-                            <span>Punktid *</span>
+                            <span data-i18n="story.fieldPoints">Points *</span>
                             <input name="points" type="number" min="0" step="1" required>
                         </label>
                     </div>
                     <div class="row">
                         <div class="field">
-                            <label id="status-label" for="story-status">Staatus</label>
+                            <label id="status-label" for="story-status" data-i18n="common.status">Status</label>
                             <select id="story-status" class="native-select" name="status" tabindex="-1" aria-hidden="true">
-                                <option value="todo">Todo / Backlog</option>
-                                <option value="doing">Doing</option>
-                                <option value="done">Done</option>
+                                <option value="todo" data-i18n="status.todo">Todo / Backlog</option>
+                                <option value="doing" data-i18n="status.doing">Doing</option>
+                                <option value="done" data-i18n="status.done">Done</option>
                             </select>
                             <div class="custom-select" data-status-select>
                                 <button class="custom-select-trigger" id="status-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="status-label status-trigger-value">
                                     <span id="status-trigger-value">Todo / Backlog</span>
                                 </button>
                                 <div class="custom-select-menu" role="listbox" aria-labelledby="status-label" hidden>
-                                    <button type="button" class="custom-select-option" role="option" data-value="todo" aria-selected="true">Todo / Backlog</button>
-                                    <button type="button" class="custom-select-option" role="option" data-value="doing" aria-selected="false">Doing</button>
-                                    <button type="button" class="custom-select-option" role="option" data-value="done" aria-selected="false">Done</button>
+                                    <button type="button" class="custom-select-option" role="option" data-value="todo" aria-selected="true" data-i18n="status.todo">Todo / Backlog</button>
+                                    <button type="button" class="custom-select-option" role="option" data-value="doing" aria-selected="false" data-i18n="status.doing">Doing</button>
+                                    <button type="button" class="custom-select-option" role="option" data-value="done" aria-selected="false" data-i18n="status.done">Done</button>
                                 </div>
                             </div>
                         </div>
                     </div>
                     <fieldset class="field">
-                        <legend>Vastuvõtutingimused * (vähemalt 1)</legend>
+                        <legend data-i18n="story.criteriaLegend">Acceptance criteria * (at least 1)</legend>
                         <div id="criteria-list"></div>
-                        <button type="button" class="btn" id="add-criterion">+ Lisa tingimus</button>
+                        <button type="button" class="btn" id="add-criterion" data-i18n="story.addCriterion">+ Add criterion</button>
                     </fieldset>
                     <p id="form-error" class="form-error" hidden></p>
                 </div>
                 <footer class="modal-footer">
-                    <button type="button" class="btn" data-close>Tühista</button>
-                    <button type="submit" class="btn btn-primary">Salvesta</button>
+                    <button type="button" class="btn" data-close data-i18n="common.cancel">Cancel</button>
+                    <button type="submit" class="btn btn-primary" data-i18n="common.save">Save</button>
                 </footer>
             </form>
         </div>
@@ -180,70 +182,70 @@
         <div class="modal-backdrop" data-close></div>
         <div class="modal projects-modal" role="dialog" aria-modal="true" aria-labelledby="projects-title">
             <header class="modal-header">
-                <h2 id="projects-title">Projektid</h2>
-                <button class="modal-close btn" data-close aria-label="Sulge">✕</button>
+                <h2 id="projects-title" data-i18n="project.modalTitle">Projects</h2>
+                <button class="modal-close btn" data-close aria-label="Close" data-i18n-aria-label="common.close">✕</button>
             </header>
             <div class="modal-body projects-body">
                 <section class="projects-list-panel">
-                    <h3>Olemasolevad projektid</h3>
+                    <h3 data-i18n="project.existing">Existing projects</h3>
                     <div id="projects-list" class="projects-list"></div>
                 </section>
                 <form id="project-form" class="project-form">
-                    <h3 id="project-form-title">Uus projekt</h3>
+                    <h3 id="project-form-title" data-i18n="project.formNewTitle">New project</h3>
                     <input type="hidden" name="id">
                     <label class="field">
-                        <span>Nimi *</span>
+                        <span data-i18n="project.fieldName">Name *</span>
                         <input name="name" required maxlength="120">
                     </label>
                     <label class="field">
-                        <span>Kirjeldus</span>
+                        <span data-i18n="common.description">Description</span>
                         <textarea name="description" rows="3"></textarea>
                     </label>
                     <div class="row">
                         <label class="field">
-                            <span>Värv</span>
+                            <span data-i18n="project.fieldColor">Color</span>
                             <input name="color" type="color" value="#2563eb">
                         </label>
                         <div class="field">
-                            <label id="project-status-label" for="project-status">Staatus</label>
+                            <label id="project-status-label" for="project-status" data-i18n="common.status">Status</label>
                             <select id="project-status" class="native-select" name="status" tabindex="-1" aria-hidden="true">
-                                <option value="active">Aktiivne</option>
-                                <option value="archived">Arhiveeritud</option>
+                                <option value="active" data-i18n="projectStatus.active">Active</option>
+                                <option value="archived" data-i18n="projectStatus.archived">Archived</option>
                             </select>
                             <div class="custom-select" data-project-status-select>
                                 <button class="custom-select-trigger" id="project-status-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="project-status-label project-status-value">
-                                    <span id="project-status-value">Aktiivne</span>
+                                    <span id="project-status-value">Active</span>
                                 </button>
                                 <div class="custom-select-menu" role="listbox" aria-labelledby="project-status-label" hidden>
-                                    <button type="button" class="custom-select-option" role="option" data-value="active" aria-selected="true">Aktiivne</button>
-                                    <button type="button" class="custom-select-option" role="option" data-value="archived" aria-selected="false">Arhiveeritud</button>
+                                    <button type="button" class="custom-select-option" role="option" data-value="active" aria-selected="true" data-i18n="projectStatus.active">Active</button>
+                                    <button type="button" class="custom-select-option" role="option" data-value="archived" aria-selected="false" data-i18n="projectStatus.archived">Archived</button>
                                 </div>
                             </div>
                         </div>
                     </div>
                     <div class="row">
                         <label class="field">
-                            <span>Omanik</span>
+                            <span data-i18n="project.fieldOwner">Owner</span>
                             <input name="owner">
                         </label>
                         <label class="field">
-                            <span>Klient</span>
+                            <span data-i18n="project.fieldClient">Client</span>
                             <input name="client">
                         </label>
                     </div>
                     <label class="field">
-                        <span>Tähtaeg</span>
+                        <span data-i18n="project.fieldDeadline">Deadline</span>
                         <input name="deadline" type="date">
                     </label>
                     <p id="project-error" class="form-error" hidden></p>
                     <div class="project-form-actions">
-                        <button type="button" class="btn" id="project-form-reset">Uus projekt</button>
-                        <button type="submit" class="btn btn-primary">Salvesta projekt</button>
+                        <button type="button" class="btn" id="project-form-reset" data-i18n="project.formNewTitle">New project</button>
+                        <button type="submit" class="btn btn-primary" data-i18n="project.saveButton">Save project</button>
                     </div>
                 </form>
             </div>
             <footer class="modal-footer">
-                <button type="button" class="btn" data-close>Sulge</button>
+                <button type="button" class="btn" data-close data-i18n="common.close">Close</button>
             </footer>
         </div>
     </div>
@@ -252,8 +254,8 @@
         <div class="modal-backdrop" data-close></div>
         <div class="mockup-viewer" role="dialog" aria-modal="true" aria-labelledby="mockup-viewer-title">
             <header class="modal-header">
-                <h2 id="mockup-viewer-title">Mockup</h2>
-                <button class="modal-close btn" data-close aria-label="Sulge">✕</button>
+                <h2 id="mockup-viewer-title" data-i18n="mockup.title">Mockup</h2>
+                <button class="modal-close btn" data-close aria-label="Close" data-i18n-aria-label="common.close">✕</button>
             </header>
             <div class="mockup-viewer-body">
                 <img id="mockup-viewer-image" class="mockup-viewer-image" alt="">

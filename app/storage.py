@@ -13,7 +13,7 @@ PROJECTS_FILE = DATA_DIR / "projects.json"
 PROJECTS_EXAMPLE_FILE = DATA_DIR / "projects.example.json"
 MOCKUPS_DIR = DATA_DIR / "mockups"
 DEFAULT_PROJECT_ID = 1
-DEFAULT_PROJECT_NAME = "Näidis"
+DEFAULT_PROJECT_NAME = "Sample"
 
 _lock = Lock()
 
@@ -27,7 +27,7 @@ def _default_project() -> dict[str, Any]:
     return {
         "id": DEFAULT_PROJECT_ID,
         "name": DEFAULT_PROJECT_NAME,
-        "description": "Näidisprojekt olemasolevate story'de jaoks.",
+        "description": "Sample project for the existing stories.",
         "color": "#2563eb",
         "status": "active",
         "owner": "",

@@ -26,7 +26,7 @@ async function fetchStories() {
     const projectParam = state.selectedProjectId ? `?projectId=${state.selectedProjectId}` : "";
     const res = await fetch(`${API}${projectParam}`);
     if (!res.ok) {
-        throw new Error(`Andmete laadimine ebaõnnestus (HTTP ${res.status})`);
+        throw new Error(t("error.loadStories", { status: res.status }));
     }
     return res.json();
 }
@@ -34,7 +34,7 @@ async function fetchStories() {
 async function fetchProjects() {
     const res = await fetch(PROJECTS_API);
     if (!res.ok) {
-        throw new Error(`Projektide laadimine ebaõnnestus (HTTP ${res.status})`);
+        throw new Error(t("error.loadProjects", { status: res.status }));
     }
     return res.json();
 }
@@ -61,9 +61,9 @@ function updateThemeToggle(theme) {
     const btn = document.getElementById("theme-toggle");
     if (!btn) return;
     const isDark = theme === "dark";
-    btn.textContent = isDark ? "Hele" : "Tume";
+    btn.textContent = isDark ? t("theme.light") : t("theme.dark");
     btn.setAttribute("aria-pressed", String(isDark));
-    btn.setAttribute("aria-label", isDark ? "Lülita hele teema sisse" : "Lülita tume teema sisse");
+    btn.setAttribute("aria-label", isDark ? t("theme.switchToLight") : t("theme.switchToDark"));
 }
 
 function applyTheme(theme) {
@@ -91,6 +91,52 @@ function initTheme() {
             media.addListener(syncSystemTheme);
         }
     }
+}
+
+// Set by initFilters so applyLanguage can re-sync the points-filter trigger label.
+let syncPointsFilterFn = null;
+
+function updateLangToggle() {
+    const btn = document.getElementById("lang-toggle");
+    if (!btn) return;
+    const target = getLang() === "en" ? "et" : "en";
+    btn.textContent = target.toUpperCase();
+    btn.setAttribute("aria-label", target === "et" ? t("lang.switchToEstonian") : t("lang.switchToEnglish"));
+}
+
+// Re-render every visible piece of UI in the newly selected language.
+function applyLanguage(lang) {
+    setLang(lang);
+    applyStaticTranslations();
+    updateLangToggle();
+    updateThemeToggle(document.documentElement.dataset.theme || getSystemTheme());
+    renderProjectSwitcher();
+    renderBoard();
+    if (syncPointsFilterFn) syncPointsFilterFn();
+    if (modal.root && !modal.root.hidden) {
+        modal.updateTitle();
+        modal.syncStatusSelect();
+    }
+    if (projectsModal.root && !projectsModal.root.hidden) {
+        projectsModal.render();
+        projectsModal.updateFormTitle();
+        projectsModal.syncStatusSelect();
+    }
+    if (detail.root && !detail.root.hidden && detail.currentId != null) {
+        const story = findStory(detail.currentId);
+        if (story) detail.open(story);
+    }
+}
+
+function initLang() {
+    setLang(getLang());
+    applyStaticTranslations();
+    updateLangToggle();
+    const btn = document.getElementById("lang-toggle");
+    if (!btn) return;
+    btn.addEventListener("click", () => {
+        applyLanguage(getLang() === "en" ? "et" : "en");
+    });
 }
 
 function setAppStatus(message, type = "info") {
@@ -121,10 +167,10 @@ function formatFileSize(size) {
 }
 
 function validateMockupFile(file) {
-    if (!file) return "Vali mockupi fail.";
-    if (!MOCKUP_TYPES.includes(file.type)) return "Lubatud mockupi tüübid on PNG, JPEG ja WebP.";
-    if (file.size > MOCKUP_MAX_SIZE) return "Mockupi maksimaalne suurus on 5 MB.";
-    if (file.size === 0) return "Mockupi fail ei tohi olla tühi.";
+    if (!file) return t("mockup.errChoose");
+    if (!MOCKUP_TYPES.includes(file.type)) return t("mockup.errType");
+    if (file.size > MOCKUP_MAX_SIZE) return t("mockup.errSize");
+    if (file.size === 0) return t("mockup.errEmpty");
     return "";
 }
 
@@ -134,7 +180,7 @@ function renderCard(story) {
     card.dataset.id = story.id;
     card.tabIndex = 0;
     card.setAttribute("role", "button");
-    card.setAttribute("aria-label", `Ava story #${story.number}: ${story.title}`);
+    card.setAttribute("aria-label", t("story.cardAria", { number: story.number, title: story.title }));
     const criteriaCount = (story.acceptanceCriteria || []).length;
     const commentCount = (story.comments || []).length;
     const description = String(story.description || "").trim();
@@ -153,8 +199,8 @@ function renderCard(story) {
         ${description ? `<p class="card-description">${escapeHtml(description)}</p>` : ""}
         <div class="card-metrics">
             <span class="metric-badge">${criteriaCount} AC</span>
-            <span class="metric-badge">${commentCount} kommentaari</span>
-            ${story.mockup ? `<span class="metric-badge mockup-badge">Mockup</span>` : ""}
+            <span class="metric-badge">${escapeHtml(t("story.commentCount", { n: commentCount }))}</span>
+            ${story.mockup ? `<span class="metric-badge mockup-badge">${escapeHtml(t("mockup.title"))}</span>` : ""}
         </div>
     `;
     return card;
@@ -164,13 +210,13 @@ function renderEmptyState(container, status, filteredOut) {
     const empty = document.createElement("div");
     empty.className = "empty-state";
     const statusText = {
-        todo: "Lisa esimene story või muuda filtreid.",
-        doing: "Lohista siia story, kui töö algab.",
-        done: "Valmis story'd ilmuvad siia.",
+        todo: t("empty.todo"),
+        doing: t("empty.doing"),
+        done: t("empty.done"),
     };
     empty.innerHTML = filteredOut
-        ? `<div><strong>Filtritele vastavaid story'sid ei leitud.</strong><span>Proovi otsingut või punktifiltrit muuta.</span></div>`
-        : `<div><strong>Siin pole veel story'sid.</strong><span>${statusText[status]}</span></div>`;
+        ? `<div><strong>${escapeHtml(t("empty.filteredTitle"))}</strong><span>${escapeHtml(t("empty.filteredHint"))}</span></div>`
+        : `<div><strong>${escapeHtml(t("empty.title"))}</strong><span>${escapeHtml(statusText[status])}</span></div>`;
     container.appendChild(empty);
 }
 
@@ -197,7 +243,10 @@ function renderBoard() {
         const sumEl = document.querySelector(`[data-sum-for="${status}"]`);
         if (sumEl) sumEl.textContent = `${sum}p`;
         const countEl = document.querySelector(`[data-count-for="${status}"]`);
-        if (countEl) countEl.textContent = `${byStatus[status].length} story`;
+        if (countEl) {
+            const n = byStatus[status].length;
+            countEl.textContent = t(n === 1 ? "column.countOne" : "column.countMany", { n });
+        }
     }
 }
 
@@ -206,7 +255,7 @@ function showError(message) {
 }
 
 async function reload() {
-    setAppStatus("Laadin story'sid...");
+    setAppStatus(t("status.loading"));
     try {
         state.stories = await fetchStories();
         renderBoard();
@@ -233,9 +282,8 @@ const modal = {
         this.form.reset();
         this.criteriaList.innerHTML = "";
         this.populateProjectOptions();
-        const headerEl = document.getElementById("modal-title");
+        this.updateTitle();
         if (story) {
-            headerEl.textContent = `Muuda story #${story.number}`;
             this.form.title.value = story.title;
             this.form.description.value = story.description || "";
             this.form.points.value = story.points;
@@ -245,7 +293,6 @@ const modal = {
             for (const c of story.acceptanceCriteria || []) this.addCriterion(c);
             if (!(story.acceptanceCriteria || []).length) this.addCriterion();
         } else {
-            headerEl.textContent = "Uus story";
             this.form.projectId.value = state.selectedProjectId || (state.projects[0] && state.projects[0].id) || 1;
             this.addCriterion();
             this.syncStatusSelect();
@@ -258,12 +305,24 @@ const modal = {
         this.editingId = null;
         this.root.hidden = true;
     },
+    updateTitle() {
+        const headerEl = document.getElementById("modal-title");
+        if (!headerEl) return;
+        if (this.editingId != null) {
+            const story = findStory(this.editingId);
+            headerEl.textContent = story
+                ? t("story.modalEditTitle", { number: story.number })
+                : t("story.modalNewTitle");
+        } else {
+            headerEl.textContent = t("story.modalNewTitle");
+        }
+    },
     addCriterion(value = "") {
         const row = document.createElement("div");
         row.className = "criterion";
         row.innerHTML = `
-            <input type="text" placeholder="Vastuvõtutingimus" value="${escapeHtml(value)}">
-            <button type="button" class="remove" aria-label="Eemalda">✕</button>
+            <input type="text" placeholder="${escapeHtml(t("story.criterionPlaceholder"))}" value="${escapeHtml(value)}">
+            <button type="button" class="remove" aria-label="${escapeHtml(t("common.remove"))}">✕</button>
         `;
         row.querySelector(".remove").addEventListener("click", () => {
             if (this.criteriaList.children.length > 1) row.remove();
@@ -291,7 +350,7 @@ const modal = {
     syncStatusSelect() {
         if (!this.statusSelect || !this.statusTrigger || !this.statusMenu) return;
         const selected = this.statusSelect.selectedOptions[0];
-        const label = selected ? selected.textContent : "Todo / Backlog";
+        const label = selected ? selected.textContent : t("status.todo");
         document.getElementById("status-trigger-value").textContent = label;
         this.statusMenu.querySelectorAll(".custom-select-option").forEach((option) => {
             const isSelected = option.dataset.value === this.statusSelect.value;
@@ -326,7 +385,7 @@ async function submitNewStory(payload) {
     if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         const detail = formatValidationError(data.detail);
-        throw new Error(detail || `Salvestamine ebaõnnestus (HTTP ${res.status})`);
+        throw new Error(detail || t("error.save", { status: res.status }));
     }
     return res.json();
 }
@@ -339,7 +398,7 @@ async function updateStory(id, payload) {
     });
     if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(formatValidationError(data.detail) || `Uuendamine ebaõnnestus (HTTP ${res.status})`);
+        throw new Error(formatValidationError(data.detail) || t("error.update", { status: res.status }));
     }
     return res.json();
 }
@@ -347,7 +406,7 @@ async function updateStory(id, payload) {
 async function deleteStory(id) {
     const res = await fetch(`${API}/${id}`, { method: "DELETE" });
     if (!res.ok && res.status !== 204) {
-        throw new Error(`Kustutamine ebaõnnestus (HTTP ${res.status})`);
+        throw new Error(t("error.delete", { status: res.status }));
     }
 }
 
@@ -359,7 +418,7 @@ async function addComment(storyId, text) {
     });
     if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(formatValidationError(data.detail) || `Kommentaari salvestamine ebaõnnestus (HTTP ${res.status})`);
+        throw new Error(formatValidationError(data.detail) || t("error.commentSave", { status: res.status }));
     }
     return res.json();
 }
@@ -367,7 +426,7 @@ async function addComment(storyId, text) {
 async function deleteComment(storyId, commentId) {
     const res = await fetch(`${API}/${storyId}/comments/${commentId}`, { method: "DELETE" });
     if (!res.ok && res.status !== 204) {
-        throw new Error(`Kommentaari kustutamine ebaõnnestus (HTTP ${res.status})`);
+        throw new Error(t("error.commentDelete", { status: res.status }));
     }
 }
 
@@ -380,7 +439,7 @@ async function uploadMockup(storyId, file) {
     });
     if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(formatValidationError(data.detail) || `Mockupi salvestamine ebaõnnestus (HTTP ${res.status})`);
+        throw new Error(formatValidationError(data.detail) || t("error.mockupSave", { status: res.status }));
     }
     return res.json();
 }
@@ -389,7 +448,7 @@ async function deleteMockup(storyId) {
     const res = await fetch(`${API}/${storyId}/mockup`, { method: "DELETE" });
     if (!res.ok && res.status !== 204) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(formatValidationError(data.detail) || `Mockupi kustutamine ebaõnnestus (HTTP ${res.status})`);
+        throw new Error(formatValidationError(data.detail) || t("error.mockupDelete", { status: res.status }));
     }
 }
 
@@ -401,7 +460,7 @@ async function saveProject(id, payload) {
     });
     if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(formatValidationError(data.detail) || `Projekti salvestamine ebaõnnestus (HTTP ${res.status})`);
+        throw new Error(formatValidationError(data.detail) || t("error.projectSave", { status: res.status }));
     }
     return res.json();
 }
@@ -410,7 +469,7 @@ async function deleteProject(id) {
     const res = await fetch(`${PROJECTS_API}/${id}`, { method: "DELETE" });
     if (!res.ok && res.status !== 204) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(formatValidationError(data.detail) || `Projekti kustutamine ebaõnnestus (HTTP ${res.status})`);
+        throw new Error(formatValidationError(data.detail) || t("error.projectDelete", { status: res.status }));
     }
 }
 
@@ -420,7 +479,7 @@ async function patchStatus(id, status) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
     });
-    if (!res.ok) throw new Error(`Staatuse muutmine ebaõnnestus (HTTP ${res.status})`);
+    if (!res.ok) throw new Error(t("error.status", { status: res.status }));
     return res.json();
 }
 
@@ -430,7 +489,7 @@ async function reorderBacklog(orderIds) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ order: orderIds, projectId: state.selectedProjectId || 1 }),
     });
-    if (!res.ok) throw new Error(`Järjekorra salvestamine ebaõnnestus (HTTP ${res.status})`);
+    if (!res.ok) throw new Error(t("error.reorder", { status: res.status }));
     return res.json();
 }
 
@@ -439,7 +498,7 @@ function formatValidationError(detail) {
     if (typeof detail === "string") return detail;
     if (Array.isArray(detail)) {
         return detail
-            .map((d) => `${(d.loc || []).slice(-1)[0] || "väli"}: ${d.msg || "vigane"}`)
+            .map((d) => `${(d.loc || []).slice(-1)[0] || t("error.field")}: ${d.msg || t("error.invalid")}`)
             .join("; ");
     }
     return JSON.stringify(detail);
@@ -450,14 +509,14 @@ function renderProjectSwitcher() {
     const triggerDot = document.getElementById("project-trigger-dot");
     const optionsRoot = document.getElementById("project-options");
     const project = currentProject();
-    if (triggerValue) triggerValue.textContent = project ? project.name : "Projekt";
+    if (triggerValue) triggerValue.textContent = project ? project.name : t("project.switcherDefault");
     if (triggerDot) triggerDot.style.background = projectColor(project);
     if (!optionsRoot) return;
     optionsRoot.innerHTML = state.projects.map((p) => `
         <button type="button" class="custom-select-option project-option" role="option" data-id="${p.id}" aria-selected="${p.id === state.selectedProjectId}">
             <span class="project-dot" style="background:${escapeHtml(projectColor(p))}" aria-hidden="true"></span>
             <span>${escapeHtml(p.name)}</span>
-            ${p.status === "archived" ? `<span class="project-status-pill">Arhiveeritud</span>` : ""}
+            ${p.status === "archived" ? `<span class="project-status-pill">${escapeHtml(t("projectStatus.archived"))}</span>` : ""}
         </button>
     `).join("");
     optionsRoot.querySelectorAll(".project-option").forEach((btn) => {
@@ -518,8 +577,15 @@ const projectsModal = {
         this.form.color.value = "#2563eb";
         this.form.status.value = "active";
         this.syncStatusSelect();
-        document.getElementById("project-form-title").textContent = "Uus projekt";
+        this.updateFormTitle();
         this.hideError();
+    },
+    updateFormTitle() {
+        const el = document.getElementById("project-form-title");
+        if (!el) return;
+        el.textContent = this.editingId != null
+            ? t("project.editTitle", { id: this.editingId })
+            : t("project.formNewTitle");
     },
     hideError() {
         this.error.hidden = true;
@@ -551,7 +617,7 @@ const projectsModal = {
         this.form.owner.value = project.owner || "";
         this.form.client.value = project.client || "";
         this.form.deadline.value = project.deadline || "";
-        document.getElementById("project-form-title").textContent = `Muuda projekti #${project.id}`;
+        this.updateFormTitle();
         this.hideError();
     },
     render() {
@@ -562,12 +628,12 @@ const projectsModal = {
                     <span class="project-dot" style="background:${escapeHtml(projectColor(project))}" aria-hidden="true"></span>
                     <div>
                         <strong>${escapeHtml(project.name)}</strong>
-                        <span>${escapeHtml(project.client || project.owner || project.status)}</span>
+                        <span>${escapeHtml(project.client || project.owner || t("projectStatus." + project.status))}</span>
                     </div>
                 </div>
                 <div class="project-list-actions">
-                    <button type="button" class="btn" data-edit-project>Muuda</button>
-                    <button type="button" class="btn btn-danger" data-delete-project>Kustuta</button>
+                    <button type="button" class="btn" data-edit-project>${escapeHtml(t("common.edit"))}</button>
+                    <button type="button" class="btn btn-danger" data-delete-project>${escapeHtml(t("common.delete"))}</button>
                 </div>
             </article>
         `).join("");
@@ -582,7 +648,7 @@ const projectsModal = {
             btn.addEventListener("click", async () => {
                 const id = Number(btn.closest(".project-list-item").dataset.projectId);
                 const project = state.projects.find((p) => p.id === id);
-                if (!project || !confirm(`Kustuta projekt "${project.name}"? Projekt peab olema tühi.`)) return;
+                if (!project || !confirm(t("dialog.deleteProject", { name: project.name }))) return;
                 try {
                     await deleteProject(id);
                     await loadProjects();
@@ -597,7 +663,7 @@ const projectsModal = {
     syncStatusSelect() {
         if (!this.statusSelect || !this.statusMenu) return;
         const selected = this.statusSelect.selectedOptions[0];
-        document.getElementById("project-status-value").textContent = selected ? selected.textContent : "Aktiivne";
+        document.getElementById("project-status-value").textContent = selected ? selected.textContent : t("projectStatus.active");
         this.statusMenu.querySelectorAll(".custom-select-option").forEach((option) => {
             option.setAttribute("aria-selected", String(option.dataset.value === this.statusSelect.value));
         });
@@ -656,12 +722,12 @@ function initModal() {
     modal.form.addEventListener("submit", async (e) => {
         e.preventDefault();
         const payload = modal.collect();
-        if (!payload.title) return modal.showError("Pealkiri on kohustuslik.");
+        if (!payload.title) return modal.showError(t("story.errTitle"));
         if (!Number.isInteger(payload.points) || payload.points < 0) {
-            return modal.showError("Punktid peavad olema mittenegatiivne täisarv.");
+            return modal.showError(t("story.errPoints"));
         }
         if (payload.acceptanceCriteria.length === 0) {
-            return modal.showError("Lisa vähemalt üks vastuvõtutingimus.");
+            return modal.showError(t("story.errCriteria"));
         }
         try {
             if (modal.editingId != null) {
@@ -689,7 +755,7 @@ const detail = {
         const commentsHtml = (story.comments || [])
             .map((c) => `
                 <li class="comment" data-comment-id="${c.id}">
-                    <button class="comment-delete" aria-label="Kustuta kommentaar">✕</button>
+                    <button class="comment-delete" aria-label="${escapeHtml(t("comment.deleteAria"))}">✕</button>
                     <p class="comment-text">${escapeHtml(c.text)}</p>
                     <span class="comment-meta">${escapeHtml(c.createdAt || "")}</span>
                 </li>
@@ -699,30 +765,30 @@ const detail = {
             <div class="detail-meta">
                 <span class="status-badge status-${story.status}">${story.status}</span>
                 <span class="points-badge">${story.points}p</span>
-                <span>Loodud: ${escapeHtml(story.createdAt || "")}</span>
-                <span>Uuendatud: ${escapeHtml(story.updatedAt || "")}</span>
+                <span>${escapeHtml(t("detail.created", { date: story.createdAt || "" }))}</span>
+                <span>${escapeHtml(t("detail.updated", { date: story.updatedAt || "" }))}</span>
             </div>
             <div class="detail-section">
-                <h3>Kirjeldus</h3>
+                <h3>${escapeHtml(t("common.description"))}</h3>
                 <p>${escapeHtml(story.description || "—")}</p>
             </div>
             <div class="detail-section">
-                <h3>Vastuvõtutingimused</h3>
+                <h3>${escapeHtml(t("story.criteriaHeading"))}</h3>
                 <ul>${criteriaHtml || "<li>—</li>"}</ul>
             </div>
-            <button type="button" class="btn btn-ghost detail-edit-inline" id="detail-edit-inline">Muuda kirjeldust ja tingimusi</button>
+            <button type="button" class="btn btn-ghost detail-edit-inline" id="detail-edit-inline">${escapeHtml(t("detail.editInline"))}</button>
             <div class="detail-section mockup-section">
-                <h3>Mockup</h3>
+                <h3>${escapeHtml(t("mockup.title"))}</h3>
                 ${mockupHtml}
                 <input id="mockup-file" type="file" accept="image/png,image/jpeg,image/webp" hidden>
                 <p class="form-error" id="mockup-error" hidden></p>
             </div>
             <div class="detail-section comments-section">
-                <h3>Kommentaarid</h3>
-                <ul class="comments-list">${commentsHtml || "<li class=\"comment-meta\">Veel pole kommentaare.</li>"}</ul>
+                <h3>${escapeHtml(t("comment.heading"))}</h3>
+                <ul class="comments-list">${commentsHtml || `<li class="comment-meta">${escapeHtml(t("comment.empty"))}</li>`}</ul>
                 <form class="comment-form" id="comment-form">
-                    <textarea name="text" placeholder="Lisa kommentaar…" required></textarea>
-                    <button type="submit" class="btn btn-primary">Lisa</button>
+                    <textarea name="text" placeholder="${escapeHtml(t("comment.placeholder"))}" required></textarea>
+                    <button type="submit" class="btn btn-primary">${escapeHtml(t("comment.addButton"))}</button>
                 </form>
                 <p class="form-error" id="comment-error" hidden></p>
             </div>
@@ -737,26 +803,26 @@ const detail = {
         if (mockup) {
             return `
                 <div class="mockup-preview">
-                    <button type="button" class="mockup-thumb-button" id="mockup-open" aria-label="Ava mockup suurelt">
-                        <img class="mockup-thumb" src="${escapeHtml(mockup.url)}" alt="Mockup: ${escapeHtml(mockup.originalName)}">
+                    <button type="button" class="mockup-thumb-button" id="mockup-open" aria-label="${escapeHtml(t("mockup.openAria"))}">
+                        <img class="mockup-thumb" src="${escapeHtml(mockup.url)}" alt="${escapeHtml(t("mockup.title"))}: ${escapeHtml(mockup.originalName)}">
                     </button>
                     <div class="mockup-info">
                         <strong>${escapeHtml(mockup.originalName)}</strong>
                         <span>${escapeHtml(mockup.contentType)} · ${formatFileSize(mockup.size)} · ${escapeHtml(mockup.createdAt || "")}</span>
                         <div class="mockup-actions">
-                            <button type="button" class="btn" id="mockup-open-action">Ava suurelt</button>
-                            <button type="button" class="btn" id="mockup-replace">Asenda</button>
-                            <button type="button" class="btn btn-danger" id="mockup-delete">Kustuta</button>
+                            <button type="button" class="btn" id="mockup-open-action">${escapeHtml(t("mockup.openFull"))}</button>
+                            <button type="button" class="btn" id="mockup-replace">${escapeHtml(t("mockup.replace"))}</button>
+                            <button type="button" class="btn btn-danger" id="mockup-delete">${escapeHtml(t("common.delete"))}</button>
                         </div>
                     </div>
                 </div>
             `;
         }
         return `
-            <div class="mockup-dropzone" id="mockup-dropzone" aria-label="Lisa mockup lohistades, failivalikuga või clipboardist kleepides">
-                <strong>Lohista mockup siia</strong>
-                <span>Või vali PNG, JPEG või WebP fail kuni 5 MB. Clipboardist kleepimine töötab, kui detailvaade on avatud.</span>
-                <button type="button" class="btn" id="mockup-pick">Vali fail</button>
+            <div class="mockup-dropzone" id="mockup-dropzone" aria-label="${escapeHtml(t("mockup.dropzoneAria"))}">
+                <strong>${escapeHtml(t("mockup.dropzoneTitle"))}</strong>
+                <span>${escapeHtml(t("mockup.dropzoneHint"))}</span>
+                <button type="button" class="btn" id="mockup-pick">${escapeHtml(t("mockup.pick"))}</button>
             </div>
         `;
     },
@@ -771,7 +837,7 @@ const detail = {
         if (!story) return;
         const validation = validateMockupFile(file);
         if (validation) return this.showMockupError(validation);
-        if (story.mockup && !confirm("Asenda olemasolev mockup uuega?")) return;
+        if (story.mockup && !confirm(t("dialog.replaceMockup"))) return;
         try {
             await uploadMockup(story.id, file);
             await reload();
@@ -799,7 +865,7 @@ const detail = {
         }));
         if (deleteBtn) {
             deleteBtn.addEventListener("click", async () => {
-                if (!confirm("Kustuta mockup?")) return;
+                if (!confirm(t("dialog.deleteMockup"))) return;
                 try {
                     await deleteMockup(story.id);
                     await reload();
@@ -841,7 +907,7 @@ const detail = {
                 e.preventDefault();
                 const text = String(form.text.value || "").trim();
                 if (!text) {
-                    errorEl.textContent = "Kommentaar ei tohi olla tühi.";
+                    errorEl.textContent = t("comment.errEmpty");
                     errorEl.hidden = false;
                     return;
                 }
@@ -860,7 +926,7 @@ const detail = {
             btn.addEventListener("click", async () => {
                 const li = btn.closest(".comment");
                 const cid = Number(li.dataset.commentId);
-                if (!confirm("Kustuta kommentaar?")) return;
+                if (!confirm(t("dialog.deleteComment"))) return;
                 try {
                     await deleteComment(this.currentId, cid);
                     await reload();
@@ -936,7 +1002,7 @@ function initDetail() {
     document.getElementById("detail-delete").addEventListener("click", async () => {
         const story = findStory(detail.currentId);
         if (!story) return;
-        if (!confirm(`Kustuta story "${story.title}"?`)) return;
+        if (!confirm(t("dialog.deleteStory", { title: story.title }))) return;
         try {
             await deleteStory(story.id);
             detail.close();
@@ -1021,11 +1087,12 @@ function initFilters() {
 
     function syncPointsFilter() {
         const selected = filterEl.selectedOptions[0];
-        pointsValue.textContent = selected ? selected.textContent : "Kõik punktid";
+        pointsValue.textContent = selected ? selected.textContent : t("toolbar.allPoints");
         pointsMenu.querySelectorAll(".custom-select-option").forEach((option) => {
             option.setAttribute("aria-selected", String(option.dataset.value === filterEl.value));
         });
     }
+    syncPointsFilterFn = syncPointsFilter;
 
     function closePointsFilter() {
         pointsMenu.hidden = true;
@@ -1118,7 +1185,7 @@ function initProjectsModal() {
     projectsModal.form.addEventListener("submit", async (e) => {
         e.preventDefault();
         const payload = projectsModal.collect();
-        if (!payload.name) return projectsModal.showError("Projekti nimi on kohustuslik.");
+        if (!payload.name) return projectsModal.showError(t("project.errName"));
         try {
             const saved = await saveProject(projectsModal.editingId, payload);
             await loadProjects();
@@ -1140,6 +1207,7 @@ function initProjectsModal() {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
+    initLang();
     initTheme();
     initProjects();
     initProjectsModal();
